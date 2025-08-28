@@ -229,7 +229,7 @@ class GmailAssistant:
             
             # Extract email body
             body = self._extract_email_body(payload)
-            
+
             # Skip if no meaningful content
             if not body or len(body.strip()) < 10:
                 return None
@@ -601,7 +601,21 @@ class GmailAssistant:
         
         database_id = self.config.get('NOTION_DATABASE_ID')
         successful_syncs = 0
-        
+
+        # NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+        # DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
+
+        # headers = {
+        #     "Authorization": f"Bearer {NOTION_TOKEN}",
+        #     "Notion-Version": "2022-06-28"
+        # }
+
+        # url = f"https://api.notion.com/v1/databases/{DATABASE_ID}"
+        # resp = requests.get(url, headers=headers)
+        # print("==========resp.json()\n\n")
+        # print(resp.json())
+        # print("\n\n==========resp.json()\n\n")
+
         for email in processed_emails:
             try:
                 # Determine team routing
