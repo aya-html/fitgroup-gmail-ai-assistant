@@ -15,11 +15,14 @@ Core Features:
 
 import os
 import json
+import re
 import logging
+import traceback
 from datetime import datetime, timedelta
 from base64 import urlsafe_b64decode
 from typing import List, Dict, Any, Tuple, Optional
-import traceback
+from bs4 import BeautifulSoup
+from email import message_from_bytes
 
 # External dependencies
 from google.oauth2.credentials import Credentials
@@ -91,6 +94,7 @@ class GmailAssistant:
         self.gmail_service = None
         self.openai_client = None
         self.notion_client = None
+        self.max_email_length = 50000
         
         self._initialize_services()
     
@@ -256,53 +260,62 @@ class GmailAssistant:
             return None
     
     def _extract_email_body(self, payload: Dict[str, Any]) -> str:
-        """Recursively extract text content from email payload"""
-        def extract_text_from_parts(parts):
-            for part in parts:
-                mime_type = part.get('mimeType', '')
-                
-                if mime_type == 'text/plain':
-                    data = part.get('body', {}).get('data')
-                    if data:
-                        try:
-                            return urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-                        except Exception:
-                            continue
-                
-                elif mime_type == 'text/html':
-                    # Fallback to HTML if no plain text
-                    data = part.get('body', {}).get('data')
-                    if data:
-                        try:
-                            html_content = urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-                            # Basic HTML stripping (we might want to use BeautifulSoup for better parsing)
-                            import re
-                            text_content = re.sub(r'<[^>]+>', '', html_content)
-                            return text_content
-                        except Exception:
-                            continue
-                
-                elif 'parts' in part:
-                    # Recursive search in multipart
-                    result = extract_text_from_parts(part['parts'])
-                    if result:
-                        return result
-            
-            return ""
-        
-        # Handle different payload structures
-        if 'parts' in payload:
-            return extract_text_from_parts(payload['parts'])
-        else:
-            # Single part message
-            data = payload.get('body', {}).get('data')
+        """
+        Robustly extract and clean plain-text from Gmail message payload.
+        Handles HTML, signatures, quoted replies, and encodings.
+        """
+        try:
+            def decode_and_clean(data: str) -> str:
+                """Helper to decode base64 and clean HTML/text safely"""
+                raw_bytes = urlsafe_b64decode(data)
+                msg = message_from_bytes(raw_bytes)
+
+                # Try plain text first
+                if msg.get_content_type() == "text/plain":
+                    text = msg.get_payload(decode=True).decode(
+                        msg.get_content_charset() or "utf-8", errors="replace"
+                    )
+                else:
+                    # fallback to HTML
+                    html = msg.get_payload(decode=True).decode(
+                        msg.get_content_charset() or "utf-8", errors="replace"
+                    )
+                    text = BeautifulSoup(html, "html.parser").get_text(" ")
+
+                # Normalize whitespace
+                text = re.sub(r"\s+", " ", text).strip()
+
+                # Remove quoted replies ("On ... wrote:")
+                text = re.split(r"\nOn .*wrote:\n", text)[0]
+
+                # Remove signatures ("-- ", "Sent from my iPhone")
+                text = re.split(r"(-- |Sent from my)", text)[0]
+
+                # Truncate giant emails
+                if len(text) > self.max_email_length:
+                    text = text[:self.max_email_length] + "\n...[truncated]"
+
+                return text
+
+            # Case 1: Simple body
+            data = payload.get("body", {}).get("data")
             if data:
-                try:
-                    return urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-                except Exception:
-                    pass
-        
-        return "[No text content extracted]"
+                return decode_and_clean(data)
+
+            # Case 2: Multipart email
+            if "parts" in payload:
+                for part in payload["parts"]:
+                    data = part.get("body", {}).get("data")
+                    if data:
+                        text = decode_and_clean(data)
+                        if text.strip():
+                            return text
+
+            return "[No text content extracted]"
+
+        except Exception as e:
+            self.logger.warning(f"Email body extraction failed: {str(e)}")
+            return "[Body extraction error]"
     
     def _detect_language(self, text: str) -> str:
         """Detect the language of the email content using GPT"""
