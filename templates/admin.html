@@ -407,16 +407,54 @@
         }
 
         .results-panel {
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 30px;
-            box-shadow: var(--shadow);
-            margin-bottom: 30px;
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 32px;
+            animation: fadeIn 0.5s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .results-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(67, 24, 255, 0.02),
+                rgba(117, 81, 255, 0.02),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: resultGlow 10s linear infinite;
+        }
+
+        @keyframes resultGlow {
+            0% {
+                transform: rotate(45deg) translateY(-100%);
+            }
+            100% {
+                transform: rotate(45deg) translateY(100%);
+            }
         }
 
         .results-panel h2 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+            position: relative;
+            z-index: 1;
         }
 
         .loading {
@@ -425,24 +463,35 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
+            gap: 24px;
+            position: relative;
         }
 
-        .loading i {
-            font-size: 2.5rem;
-            color: var(--accent-blue);
-            animation: loading-spin 1.5s linear infinite;
+        .loading::before {
+            content: "";
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--bg-secondary);
+            border-radius: 50%;
+            border-top-color: var(--accent-blue);
+            animation: loader-spin 1s ease-in-out infinite;
         }
 
         .loading p {
             color: var(--text-secondary);
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 500;
+            margin-top: 16px;
+            animation: loader-fade 1.5s ease-in-out infinite;
         }
 
-        @keyframes loading-spin {
-            from { transform: rotate(0deg); }
+        @keyframes loader-spin {
             to { transform: rotate(360deg); }
+        }
+
+        @keyframes loader-fade {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
         }
 
         .loading-overlay {
@@ -451,14 +500,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(11, 20, 55, 0.8);
+            background: rgba(11, 20, 55, 0.9);
             backdrop-filter: blur(8px);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
             animation: fadeIn 0.3s ease-out;
-        }
         }
 
         .alert {
@@ -469,19 +517,19 @@
         }
 
         .alert-success {
-            background: #d5f4e6;
+            /* background: #d5f4e6; */
             border-color: var(--success-color);
             color: var(--success-color);
         }
 
         .alert-error {
-            background: #ffeaea;
+            /* background: #ffeaea; */
             border-color: var(--danger-color);
             color: var(--danger-color);
         }
 
         .alert-warning {
-            background: #fff4e6;
+            /* background: #fff4e6; */
             border-color: var(--warning-color);
             color: var(--warning-color);
         }
@@ -725,15 +773,11 @@
                 updateSystemStatus('openai', data.openai_api, data.openai_api ? 'Connected' : 'Failed');
                 updateSystemStatus('notion', data.notion_api, data.notion_api ? 'Connected' : 'Not Configured');
                 
-                if (showAlert) {
-                    if (data.overall_status) {
-                        showSuccess('✅ All API connections are working properly!');
-                    } else {
-                        showWarning('⚠️ Some API connections have issues. Check the status indicators above.');
-                    }
+                if (data.overall_status) {
+                    showSuccess('All API connections are working properly!');
+                } else {
+                    showWarning('Some API connections have issues. Check the status indicators above.');
                 }
-                
-                if (showAlert) hideLoading();
                 
             } catch (error) {
                 if (showAlert) {
@@ -764,7 +808,6 @@
                 showLoading(`Processing ${maxEmails} emails from last ${days} days...`);
                 
                 const endpoint = mode === 'batch' ? '/api/process-batch' : '/api/process-emails';
-                console.log('endpoint:', endpoint);
                 
                 const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                     method: 'POST',
@@ -965,7 +1008,6 @@
             const container = document.getElementById('results-container');
             container.innerHTML = `
                 <div class="loading">
-                    <i class="fas fa-spinner"></i>
                     <p style="margin-top: 20px; color: var(--secondary-color);">${message}</p>
                 </div>
             `;
