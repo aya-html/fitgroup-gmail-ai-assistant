@@ -16,6 +16,8 @@ Core Features:
 import os
 import json
 import re
+import time
+import random
 import logging
 import traceback
 from datetime import datetime, timedelta
@@ -168,13 +170,14 @@ class GmailAssistant:
             self.logger.error(f"❌ Gmail setup failed: {str(e)}")
             raise
     
-    def fetch_recent_emails(self, days: int = 7, max_results: int = 50) -> List[Dict[str, Any]]:
+    def fetch_recent_emails(self, days: int = 7, max_results: int = 50, batch_size: int = 5) -> List[Dict[str, Any]]:
         """
         Fetch recent emails from Gmail inbox with full content extraction
         
         Args:
             days: Number of days to look back
             max_results: Maximum number of emails to fetch
+            batch_size: Number of emails to process in each batch
             
         Returns:
             List of email dictionaries with processed content
@@ -184,26 +187,61 @@ class GmailAssistant:
             past_date = (datetime.utcnow() - timedelta(days=days)).strftime('%Y/%m/%d')
             query = f"after:{past_date} in:inbox"
             
-            # Fetch email threads
-            threads_result = self.gmail_service.users().threads().list(
-                userId='me', q=query, maxResults=max_results
-            ).execute()
+            # Fetch email threads with pagination
+            threads = []
+            page_token = None
             
-            threads = threads_result.get('threads', [])
+            while len(threads) < max_results:
+                # Fetch next batch of threads
+                threads_result = self.gmail_service.users().threads().list(
+                    userId='me', q=query, maxResults=min(100, max_results - len(threads)),
+                    pageToken=page_token
+                ).execute()
+                
+                batch_threads = threads_result.get('threads', [])
+                if not batch_threads:
+                    break
+                    
+                threads.extend(batch_threads)
+                page_token = threads_result.get('nextPageToken')
+                if not page_token:
+                    break
+            
             self.logger.info(f"📬 Found {len(threads)} email threads")
             
             processed_emails = []
+            retries = 3  # Number of retries for failed attempts
             
-            for thread in threads:
-                try:
-                    email_data = self._process_single_thread(thread['id'])
-                    if email_data:
-                        processed_emails.append(email_data)
-                        self.logger.debug(f"✅ Processed: {email_data.get('subject', 'No Subject')}")
+            # Process emails in batches
+            for i in range(0, len(threads), batch_size):
+                batch = threads[i:i + batch_size]
+                retry_count = 0
+                
+                while retry_count < retries:
+                    try:
+                        for thread in batch:
+                            try:
+                                email_data = self._process_single_thread(thread['id'])
+                                if email_data:
+                                    processed_emails.append(email_data)
+                                    self.logger.debug(f"✅ Processed: {email_data.get('subject', 'No Subject')}")
+                            except Exception as e:
+                                self.logger.warning(f"⚠️ Failed to process thread {thread['id']}: {str(e)}")
+                                continue
+                            
+                            # Add small delay between requests to avoid rate limiting
+                            time.sleep(0.1)
+                        break  # Break retry loop if batch succeeds
                         
-                except Exception as e:
-                    self.logger.warning(f"⚠️ Failed to process thread {thread['id']}: {str(e)}")
-                    continue
+                    except HttpError as e:
+                        if e.resp.status in [429, 500, 503]:  # Rate limit or server error
+                            retry_count += 1
+                            if retry_count < retries:
+                                wait_time = (2 ** retry_count) + random.uniform(0, 1)  # Exponential backoff
+                                self.logger.warning(f"⚠️ Rate limit hit, waiting {wait_time:.2f}s before retry {retry_count}")
+                                time.sleep(wait_time)
+                                continue
+                        raise  # Re-raise if not a retriable error or out of retries
             
             self.logger.info(f"✅ Successfully processed {len(processed_emails)} emails")
             return processed_emails
