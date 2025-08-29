@@ -780,6 +780,15 @@
 
         // Test API connections
         async function testConnection(showAlert = true) {
+            const testButton = document.querySelector('.btn-success[onclick="testConnection()"]');
+            let originalButtonContent = ''
+            if (showAlert && testButton) {
+                // Disable button and change icon
+                testButton.disabled = true;
+                originalButtonContent = testButton.innerHTML;
+                testButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing Connections...';
+            }
+
             try {
                 if (showAlert) showLoading('Testing API connections...');
                 
@@ -802,6 +811,12 @@
                     showError('Connection test failed: ' + error.message);
                     hideLoading();
                 }
+            } finally {
+                if (showAlert && testButton) {
+                    // Re-enable button and restore original icon
+                    testButton.disabled = false;
+                    testButton.innerHTML = originalButtonContent;
+                }
             }
         }
 
@@ -823,14 +838,14 @@
                 return;
             }
             
+            const originalButtonContent = processButton.innerHTML;
+
             try {
                 // Disable button and change icon
                 processButton.disabled = true;
-                const originalButtonContent = processButton.innerHTML;
                 processButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Emails...';
                 
                 const endpoint = mode === 'batch' ? '/api/process-batch' : '/api/process-emails';
-                
                 const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                     method: 'POST',
                     headers: {
@@ -860,8 +875,8 @@
                 showError('Processing request failed: ' + error.message);
             } finally {
                 // Re-enable button and restore original icon
-                processButton.disabled = false;
                 processButton.innerHTML = originalButtonContent;
+                processButton.disabled = false;
                 hideLoading();
             }
         }
