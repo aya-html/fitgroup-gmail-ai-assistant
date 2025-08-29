@@ -261,6 +261,7 @@ class GmailAssistant:
         """
         try:
             # Fetch the full thread
+            print("\n\n\n\n\n||||||||||||updated code||||||||||||\n\n\n\n")
             thread = self.gmail_service.users().threads().get(
                 userId='me', id=thread_id
             ).execute()
