@@ -254,31 +254,44 @@ class GmailAssistant:
             raise EmailProcessingError(f"Failed to fetch emails: {str(e)}")
     
     def _process_single_thread(self, thread_id: str) -> Optional[Dict[str, Any]]:
-        """Process a single email thread and extract relevant information"""
+        """Process a single Gmail thread by ID and extract relevant information.
+
+        Note: `threads().list()` returns thread IDs. We must fetch via
+        `threads().get(...)` and then read a message from the `messages` array.
+        """
         try:
-            message = self.gmail_service.users().messages().get(
+            # Fetch the full thread
+            thread = self.gmail_service.users().threads().get(
                 userId='me', id=thread_id
             ).execute()
-            
+
+            messages = thread.get('messages', [])
+            if not messages:
+                return None
+
+            # Choose the latest message in the thread for processing
+            message = messages[-1]
+
             payload = message.get('payload', {})
             headers = {h['name']: h['value'] for h in payload.get('headers', [])}
-            
+
             # Extract basic information
             subject = headers.get('Subject', '(No Subject)')
             sender = headers.get('From', '')
-            timestamp = int(message.get('internalDate', 0)) / 1000
-            date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            
+            timestamp_ms = int(message.get('internalDate', 0))
+            timestamp = timestamp_ms / 1000 if timestamp_ms else 0
+            date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S') if timestamp else ''
+
             # Extract email body
             body = self._extract_email_body(payload)
 
             # Skip if no meaningful content
             if not body or len(body.strip()) < 10:
                 return None
-            
+
             # Detect language
             detected_language = self._detect_language(body)
-            
+
             email_data = {
                 'thread_id': thread_id,
                 'message_id': message.get('id', ''),
@@ -290,9 +303,9 @@ class GmailAssistant:
                 'detected_language': detected_language,
                 'raw_headers': headers
             }
-            
+
             return email_data
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to process thread {thread_id}: {str(e)}")
             return None
