@@ -399,18 +399,53 @@
 
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: #fff;
+            border: none;
+        }
+        .btn-primary:hover, .btn-primary:focus {
+            background: linear-gradient(135deg, #7551FF, #4318FF);
+            color: #fff;
         }
 
         .btn-success {
-            background: linear-gradient(135deg, var(--success), #02c684);
+            background: linear-gradient(135deg, #01B574, #02c684);
+            color: #fff;
+            border: none;
+        }
+        .btn-success:hover, .btn-success:focus {
+            background: linear-gradient(135deg, #02c684, #01B574);
+            color: #fff;
         }
 
         .btn-warning {
-            background: linear-gradient(135deg, var(--warning), #ffc767);
+            background: linear-gradient(135deg, #FFB547, #ffc767);
+            color: #222b45;
+            border: none;
+        }
+        .btn-warning:hover, .btn-warning:focus {
+            background: linear-gradient(135deg, #ffc767, #FFB547);
+            color: #222b45;
         }
 
         .btn-danger {
-            background: linear-gradient(135deg, var(--danger), #ff6b60);
+            background: linear-gradient(135deg, #EE5D50, #ff6b60);
+            color: #fff;
+            border: none;
+        }
+        .btn-danger:hover, .btn-danger:focus {
+            background: linear-gradient(135deg, #ff6b60, #EE5D50);
+            color: #fff;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #e4e7ef, #f5f6fa);
+            color: #222b45;
+            border: 1.5px solid #d1d5db;
+        }
+        .btn-info:hover, .btn-info:focus {
+            background: linear-gradient(135deg, #d1d5db, #e4e7ef);
+            color: #111C44;
+            border: 1.5px solid #bfc4d1;
         }
 
         .btn-full {
@@ -692,11 +727,11 @@
                 </div>
                 
                 <button class="btn btn-primary btn-full" onclick="processEmails()">
-                    <i class="fas fa-play"></i> Start Email Processing
+                    <i class="fas fa-envelope-open-text"></i> Start Email Processing
                 </button>
                 
                 <button class="btn btn-success btn-full" onclick="testConnection()">
-                    <i class="fas fa-link"></i> Test API Connections
+                    <i class="fas fa-plug"></i> Test API Connections
                 </button>
             </div>
 
@@ -705,15 +740,15 @@
                 <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
                 
                 <button class="btn btn-warning btn-full" onclick="getStats()">
-                    <i class="fas fa-chart-bar"></i> View System Statistics
+                    <i class="fas fa-chart-pie"></i> View System Statistics
                 </button>
                 
                 <button class="btn btn-primary btn-full" onclick="processRecentEmails()">
-                    <i class="fas fa-clock"></i> Process Last 24 Hours
+                    <i class="fas fa-history"></i> Process Last 24 Hours
                 </button>
                 
                 <button class="btn btn-success btn-full" onclick="processPriorityEmails()">
-                    <i class="fas fa-exclamation-triangle"></i> High Priority Mode
+                    <i class="fas fa-bolt"></i> High Priority Mode
                 </button>
                 
                 <div class="form-group" style="margin-top: 20px;">
@@ -723,7 +758,7 @@
                             <i class="fab fa-notion"></i> Notion Dashboard
                         </a>
                         <a href="https://gmail.com" target="_blank" class="btn btn-danger external-link-btn">
-                            <i class="fas fa-envelope"></i> Gmail Inbox
+                            <i class="fas fa-inbox"></i> Gmail Inbox
                         </a>
                     </div>
                     <style>
