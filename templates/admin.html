@@ -374,9 +374,27 @@
             left: 100%;
         }
 
-        .btn:hover {
+        .btn:not(:disabled):hover {
             transform: translateY(-2px);
             box-shadow: var(--glow);
+        }
+
+        .btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .btn:disabled::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: inherit;
+        }
+
+        .btn:disabled .fa-spin {
+            margin-right: 8px;
         }
 
         .btn-primary {
@@ -789,6 +807,7 @@
 
         // Process emails
         async function processEmails() {
+            const processButton = document.querySelector('.btn-primary[onclick="processEmails()"]');
             const days = parseInt(document.getElementById('days-input').value);
             const maxEmails = parseInt(document.getElementById('max-emails-input').value);
             const mode = document.getElementById('processing-mode').value;
@@ -805,7 +824,10 @@
             }
             
             try {
-                showLoading(`Processing ${maxEmails} emails from last ${days} days...`);
+                // Disable button and change icon
+                processButton.disabled = true;
+                const originalButtonContent = processButton.innerHTML;
+                processButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Emails...';
                 
                 const endpoint = mode === 'batch' ? '/api/process-batch' : '/api/process-emails';
                 
@@ -834,11 +856,13 @@
                     showError('Processing failed: ' + (result.error || 'Unknown error'));
                 }
                 
-                hideLoading();
-                
             } catch (error) {
-                hideLoading();
                 showError('Processing request failed: ' + error.message);
+            } finally {
+                // Re-enable button and restore original icon
+                processButton.disabled = false;
+                processButton.innerHTML = originalButtonContent;
+                hideLoading();
             }
         }
 
