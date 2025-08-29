@@ -174,6 +174,78 @@ fit-gmail-assistant/
 4. **Access Control**: Implement proper authentication for production use
 5. **Rate Limiting**: Monitor API usage to avoid rate limits
 
+
+## 🚀 Deployment Guide – Gmail → GPT → Notion Project
+
+This guide explains how to run and deploy the Gmail AI Assistant project:
+
+- **Production deployment** → Gunicorn on Render.com
+- **Email data → GPT → Notion** integration
+---
+
+### ⚠️ Before You Start
+
+1. **Notion DB Setup**
+    - Create a Notion database with properties (columns) matching all fields the app saves (e.g. `Email Subject`, `Sender`, `Received Date`, `Language`, `Summary`, etc.).
+    - Make sure the **property types match** (e.g. `title`, `email`, `date`, `select`, `rich_text`).
+    - Share the database with your Notion integration (invite via “Share → Invite → your integration”).
+        
+2. **Google OAuth2 Setup**
+    - Create a project in **Google Cloud Console** → Enable **Gmail API**.
+    - Generate **OAuth2 credentials** (Client ID & Secret).
+    - Run local OAuth flow to obtain **refresh token** (needed so you don’t re-consent every 7 days).
+        
+3. **Secrets Management**
+    - Do **not** commit secrets to GitHub.
+    - Use **Render.com Environment Variables** instead.
+---
+
+### 📦 Deployment to Render (Gunicorn)
+
+1. Push your repo to GitHub.
+
+2. On [Render.com](https://render.com?utm_source=chatgpt.com):
+    - Create a **New Web Service**
+    - Connect your GitHub repo
+        
+3. Add **Environment Variables** in Render dashboard:
+    `OPENAI_API_KEY, NOTION_TOKEN, NOTION_DB_ID, GOOGLE_OAUTH_TOKEN, FLASK_ENV, DEBUG`
+
+4. In Render service settings:
+    - **Build Command**:
+        `pip install -r requirements.txt`
+    - **Start Command**:
+        `gunicorn main:app --workers=2 --threads=8 --timeout=300`
+        
+5. Configure a health check endpoint (`/api/health`). Render will restart automatically if unhealthy.
+---
+
+### ✅ Verification
+
+- Visit your Render service URL:
+    `https://your-app.onrender.com/api/health`
+    Expected:
+    `{"status": "healthy", "uptime": "Running", ...}`
+- Send a test email → check Notion database for a new entry with fields filled.
+---
+
+### 🔒 Security Checklist
+
+-  Never commit `.env` or credential files.
+-  Only store secrets in Render Environment Variables.
+-  Always invite the Notion integration to your database.
+-  Validate Gmail OAuth2 tokens (refresh if expired).
+-  Use HTTPS-only for API keys & communication.
+---
+
+### 🧩 Common Issues
+
+- **Notion integration can’t write** → You forgot to invite it to the database or the database schema doesn't match.
+- **Email body empty** → Gmail sent only `text/html`, check parsing logic.
+- **Invalid refresh token** → Re-run OAuth2 flow, update `refresh_token` in `GOOGLE_AUTH_TOKEN`. Visit your Render service URL: `https://your-app.onrender.com/api/test-refresh-token` for testing
+- **Render restarts often** → Adjust Gunicorn workers/threads + health checks.
+---
+
 ## 🚀 Production Deployment Checklist
 
 - [ ] OpenAI API key configured
