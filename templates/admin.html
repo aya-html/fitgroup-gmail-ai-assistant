@@ -718,12 +718,47 @@
                 
                 <div class="form-group" style="margin-top: 20px;">
                     <label>External Links:</label>
-                    <a href="https://notion.so" target="_blank" class="btn btn-info" style="width: 48%; margin-right: 2%;">
-                        <i class="fab fa-notion"></i> Notion Dashboard
-                    </a>
-                    <a href="https://gmail.com" target="_blank" class="btn btn-danger" style="width: 48%;">
-                        <i class="fas fa-envelope"></i> Gmail Inbox
-                    </a>
+                    <div style="display: flex; gap: 4%; width: 100%;">
+                        <a href="https://notion.so" target="_blank" class="btn btn-info external-link-btn">
+                            <i class="fab fa-notion"></i> Notion Dashboard
+                        </a>
+                        <a href="https://gmail.com" target="_blank" class="btn btn-danger external-link-btn">
+                            <i class="fas fa-envelope"></i> Gmail Inbox
+                        </a>
+                    </div>
+                    <style>
+                        .external-link-btn {
+                            flex: 1 1 0;
+                            min-width: 0;
+                            margin: 0;
+                            box-sizing: border-box;
+                        }
+                        .btn-info {
+                            background: #f5f6fa;
+                            color: #222b45;
+                            border: 1.5px solid #d1d5db;
+                            font-weight: 700;
+                            box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+                            transition: background 0.2s, color 0.2s, border 0.2s;
+                        }
+                        .btn-info:hover, .btn-info:focus {
+                            background: #e4e7ef;
+                            color: #111C44;
+                            border: 1.5px solid #bfc4d1;
+                        }
+                        .btn-info .fab.fa-notion {
+                            color: #222b45;
+                            background: #f5f6fa;
+                            border-radius: 4px;
+                            font-size: 1.2em;
+                            margin-right: 6px;
+                            transition: color 0.2s, background 0.2s;
+                        }
+                        .btn-info:hover .fab.fa-notion, .btn-info:focus .fab.fa-notion {
+                            color: #111C44;
+                            background: #e4e7ef;
+                        }
+                    </style>
                 </div>
             </div>
         </div>
