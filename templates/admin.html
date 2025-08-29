@@ -914,6 +914,7 @@
                 // Disable button and change icon
                 processButton.disabled = true;
                 processButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Emails...';
+                showLoading(`Processing ${maxEmails} Emails for ${days} days...`);
                 
                 const endpoint = mode === 'batch' ? '/api/process-batch' : '/api/process-emails';
                 const response = await fetch(`${API_BASE_URL}${endpoint}`, {
