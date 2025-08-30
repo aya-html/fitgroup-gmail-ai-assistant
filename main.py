@@ -128,9 +128,9 @@ def handle_processing_error(error):
 
 
 # API Routes
-@app.route('/admin', methods=['GET'])
-def admin_page():
-    return render_template('admin.html')
+@app.route('/gmail_assistant', methods=['GET'])
+def gmail_assistant_page():
+    return render_template('gmail_assistant.html')
 
 @app.route('/', methods=['GET'])
 def home():
