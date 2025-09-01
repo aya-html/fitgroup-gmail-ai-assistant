@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIT Group - Gmail AI Assistant Login</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #ecf0f1;
+            --dark-text: #2c3e50;
+            --border-radius: 10px;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--dark-text);
+        }
+
+        .login-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 40px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            margin-bottom: 30px;
+        }
+
+        .logo i {
+            font-size: 4em;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+        }
+
+        .logo h1 {
+            color: var(--primary-color);
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #7f8c8d;
+            font-size: 1em;
+        }
+
+        .login-form {
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: white;
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-google {
+            background: linear-gradient(45deg, #4285f4, #34a853);
+        }
+
+        .btn-google:hover {
+            background: linear-gradient(45deg, #3367d6, #2d8f47);
+        }
+
+        .divider {
+            margin: 25px 0;
+            position: relative;
+            text-align: center;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .features {
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .features h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .feature-item i {
+            color: var(--success-color);
+            margin-right: 10px;
+            width: 16px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #7f8c8d;
+            font-size: 0.8em;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .loading i {
+            font-size: 2em;
+            color: var(--secondary-color);
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: var(--border-radius);
+            border-left: 5px solid;
+            display: none;
+        }
+
+        .alert-error {
+            background: #ffeaea;
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+
+        .alert-success {
+            background: #d5f4e6;
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- Logo and Title -->
+        <div class="logo">
+            <i class="fas fa-robot"></i>
+            <h1>FIT Group Gmail AI Assistant</h1>
+            <p>Email Intelligence Platform</p>
+        </div>
+
+        <!-- Alert Messages -->
+        <div id="alert-container"></div>
+
+        <!-- Login Form -->
+        <div class="login-form">
+            <button class="btn btn-google" onclick="loginWithGoogle()">
+                <i class="fab fa-google"></i>
+                Sign in with Google
+            </button>
+        </div>
+
+        <!-- Features -->
+        <div class="features">
+            <h3>What you'll get:</h3>
+            <div class="feature-item">
+                <i class="fas fa-check"></i>
+                AI-powered email analysis and classification
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-check"></i>
+                Multilingual email processing
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-check"></i>
+                Business intent detection
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-check"></i>
+                Automated response suggestions
+            </div>
+            <div class="feature-item">
+                <i class="fas fa-check"></i>
+                Shared results database
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner"></i>
+            <p>Connecting to Google...</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; 2025 FIT Group - Advanced Email Intelligence Platform</p>
+        </div>
+    </div>
+
+    <script>
+        function loginWithGoogle() {
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            
+            // Hide any existing alerts
+            hideAlerts();
+            
+            try {
+                // Redirect to Google OAuth
+                window.location.href = '/auth/google';
+            } catch (error) {
+                showError('Login failed: ' + error.message);
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-triangle"></i> ${message}
+                </div>
+            `;
+            document.querySelector('.alert').style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> ${message}
+                </div>
+            `;
+            document.querySelector('.alert').style.display = 'block';
+        }
+
+        function hideAlerts() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => alert.style.display = 'none');
+        }
+
+        // Check for URL parameters (error messages from OAuth callback)
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            const success = urlParams.get('success');
+            
+            if (error) {
+                showError(decodeURIComponent(error));
+            }
+            
+            if (success) {
+                showSuccess(decodeURIComponent(success));
+            }
+        });
+    </script>
+</body>
+</html>
