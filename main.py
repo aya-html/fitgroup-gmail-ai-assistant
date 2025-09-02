@@ -1,8 +1,9 @@
 """
-FIT Group - Gmail Assistant Web API
-===================================
+FIT Group - Multi-User Gmail Assistant Web API
+==============================================
 Production-ready Flask application for the Unified Multilingual Gmail Assistant.
 Provides REST API endpoints for email processing, monitoring, and management.
+Supports multiple users with individual Gmail accounts and shared results database.
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,21 +12,22 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, Any
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
 
-from flask import Flask, request, jsonify, render_template_string, render_template
+
+from flask import Flask, request, jsonify, render_template_string, render_template, redirect, url_for
 from flask_cors import CORS
-from werkzeug.exceptions import HTTPException
 import traceback
 
-# Import our core Gmail Assistant
-from gmail_assistant import create_gmail_assistant, EmailProcessingError
+# Import our core modules
+from gmail_assistant import GmailAssistant, EmailProcessingError
+from user_manager import UserManager
+from auth_manager import AuthManager
+from notion_manager import NotionManager
 
 
 # Initialize Flask application
 app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 CORS(app)  # Enable CORS for frontend integration
 
 # Configure logging
@@ -35,8 +37,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global assistant instance
-gmail_assistant = None
+# Global instances
+user_manager = None
+auth_manager = None
+notion_manager = None
+
+# Ensure services are initialized on first request if import-time init failed
+def ensure_services_initialized():
+    """Ensure all services are initialized before first request"""
+    global user_manager, auth_manager, notion_manager
+    if user_manager is None:
+        try:
+            initialize_services()
+            logger.info("✅ Services initialized on first request")
+        except Exception as e:
+            logger.error(f"❌ Service initialization failed on first request: {str(e)}")
+            raise
+
 
 
 def load_config() -> Dict[str, Any]:
@@ -46,13 +63,14 @@ def load_config() -> Dict[str, Any]:
         'OPENAI_API_KEY': os.environ.get('OPENAI_API_KEY'),
         
         # Google APIs Configuration
-        'GOOGLE_SERVICE_ACCOUNT_JSON': os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON'),
-        'GOOGLE_OAUTH_TOKEN': os.environ.get('GOOGLE_OAUTH_TOKEN'),
-        'GMAIL_USER_EMAIL': os.environ.get('GMAIL_USER_EMAIL', 'admin@fitgroup.com'),
+        'GOOGLE_CLIENT_SECRET_JSON': os.environ.get('GOOGLE_CLIENT_SECRET_JSON'),
+                        'GMAIL_USER_EMAIL': os.environ.get('GMAIL_USER_EMAIL', 'admin@fitgroup.com'),
         
         # Notion Configuration
         'NOTION_TOKEN': os.environ.get('NOTION_TOKEN'),
-        'NOTION_DATABASE_ID': os.environ.get('NOTION_DATABASE_ID'),
+        'NOTION_USERS_DB_ID': os.environ.get('NOTION_USERS_DB_ID'),
+        'NOTION_RESULTS_DB_ID': os.environ.get('NOTION_RESULTS_DB_ID'),
+        'NOTION_DATABASE_ID': os.environ.get('NOTION_RESULTS_DB_ID'),  # Legacy support - now points to results DB
         
         # Application Configuration
         'FLASK_ENV': os.environ.get('FLASK_ENV', 'production'),
@@ -62,35 +80,59 @@ def load_config() -> Dict[str, Any]:
     }
 
 
-def initialize_assistant():
-    """Initialize the Gmail Assistant with configuration"""
-    global gmail_assistant
+def initialize_services():
+    """Initialize all services with configuration"""
+    global user_manager, auth_manager, notion_manager
+    
     try:
         config = load_config()
         
         # Validate required configuration
-        required_vars = ['OPENAI_API_KEY']
+        required_vars = ['OPENAI_API_KEY', 'NOTION_TOKEN', 'NOTION_USERS_DB_ID', 'NOTION_RESULTS_DB_ID', 'GOOGLE_CLIENT_SECRET_JSON']
         missing_vars = [var for var in required_vars if not config.get(var)]
         
         if missing_vars:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            raise ValueError(f"Missing required environment variables for multi-user mode: {', '.join(missing_vars)}")
         
-        if not config.get('GOOGLE_SERVICE_ACCOUNT_JSON') and not config.get('GOOGLE_OAUTH_TOKEN'):
-            raise ValueError("Either GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_OAUTH_TOKEN must be provided")
+        # Initialize Notion Manager (required for multi-user)
+        notion_manager = NotionManager(
+            config['NOTION_TOKEN'],
+            config['NOTION_USERS_DB_ID'],
+            config['NOTION_RESULTS_DB_ID']
+        )
+        logger.info("✅ Notion Manager initialized successfully")
         
-        gmail_assistant = create_gmail_assistant(config)
-        logger.info("✅ Gmail Assistant initialized successfully")
+        # Initialize User Manager
+        user_manager = UserManager(
+            config['NOTION_TOKEN'],
+            config['NOTION_USERS_DB_ID']
+        )
+        logger.info("✅ User Manager initialized successfully")
+        
+        # Initialize Auth Manager
+        auth_manager = AuthManager(user_manager, config.get('GOOGLE_CLIENT_SECRET_JSON'))
+        logger.info("✅ Auth Manager initialized successfully")
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize Gmail Assistant: {str(e)}")
+        logger.error(f"❌ Failed to initialize services: {str(e)}")
         raise
 
-# Ensure the assistant is ready when imported by Gunicorn/Render
+# Ensure services are ready when imported by Gunicorn/Render
 try:
-    if gmail_assistant is None:
-        initialize_assistant()
+    if user_manager is None:
+        initialize_services()
+        logger.info("✅ Services initialized during import")
 except Exception as e:
-    logger.exception(f"Startup init failed: {e}")
+    logger.warning(f"⚠️ Import-time initialization failed: {str(e)}")
+    logger.info("Services will be initialized on first request")
+
+# Use Flask 2.3+ compatible approach
+with app.app_context():
+    try:
+        if user_manager is None:
+            ensure_services_initialized()
+    except Exception as e:
+        logger.warning(f"⚠️ App context initialization failed: {str(e)}")
 
 # Error handlers
 @app.errorhandler(404)
@@ -126,6 +168,74 @@ def handle_processing_error(error):
         'type': 'EmailProcessingError'
     }), 400
 
+
+# Authentication Routes
+@app.route('/login', methods=['GET'])
+def login_page():
+    """Login page for multi-user authentication"""
+    if auth_manager and auth_manager.is_authenticated():
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/auth/google', methods=['GET'])
+def google_auth():
+    """Initiate Google OAuth2 flow"""
+    if not auth_manager:
+        return jsonify({'error': 'Authentication not configured'}), 503
+    
+    try:
+        redirect_uri = url_for('google_callback', _external=True)
+        auth_url = auth_manager.get_authorization_url(redirect_uri)
+        return redirect(auth_url)
+    except Exception as e:
+        logger.error(f"❌ Google auth failed: {str(e)}")
+        return jsonify({'error': 'Authentication failed'}), 500
+
+@app.route('/auth/google/callback')
+def google_callback():
+    """Handle Google OAuth2 callback"""
+    if not auth_manager:
+        return jsonify({'error': 'Authentication not configured'}), 503
+    
+    try:
+        authorization_response = request.url
+        redirect_uri = url_for('google_callback', _external=True)
+        
+        result = auth_manager.handle_oauth_callback(authorization_response, redirect_uri)
+        if result:
+            return redirect(url_for('dashboard'))
+        else:
+            return redirect(url_for('login_page'))
+            
+    except Exception as e:
+        logger.error(f"❌ OAuth callback failed: {str(e)}")
+        return redirect(url_for('login_page'))
+
+@app.route('/logout')
+def logout():
+    """Logout current user"""
+    if auth_manager:
+        auth_manager.logout()
+    return redirect(url_for('login_page'))
+
+@app.route('/dashboard')
+def dashboard():
+    """User dashboard (requires authentication)"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return redirect(url_for('login_page'))
+    
+    # Validate and refresh session
+    if not auth_manager.validate_session():
+        return redirect(url_for('login_page'))
+    
+    return render_template('dashboard.html')
+
+# Legacy admin route (redirects to dashboard for multi-user)
+@app.route('/admin', methods=['GET'])
+def admin_page():
+    if auth_manager and auth_manager.is_authenticated():
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login_page'))
 
 # API Routes
 @app.route('/gmail_assistant', methods=['GET'])
@@ -202,7 +312,7 @@ def home():
     """
     
     return render_template_string(html_template, 
-                                 status="🟢 Online" if gmail_assistant else "🔴 Offline",
+                                 status="🟢 Online" if (auth_manager and user_manager and notion_manager and os.environ.get('OPENAI_API_KEY') and os.environ.get('GOOGLE_CLIENT_SECRET_JSON')) else "🔴 Offline",
                                  timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
 
 
@@ -210,25 +320,49 @@ def home():
 def health_check():
     """Health check endpoint for monitoring"""
     try:
-        if not gmail_assistant:
+        # Check if services are initialized
+        services = {
+            'auth': bool(auth_manager),
+            'user_manager': bool(user_manager),
+            'notion_api': bool(notion_manager)
+        }
+        
+        if not all(services.values()):
             return jsonify({
                 'status': 'unhealthy',
-                'message': 'Gmail Assistant not initialized',
+                'message': 'Core services not initialized',
                 'timestamp': datetime.utcnow().isoformat(),
-                'services': {
-                    'gmail_api': False,
-                    'openai_api': False,
-                    'notion_api': False
-                }
+                'services': services,
+                'mode': 'multi-user'
             }), 503
         
-        stats = gmail_assistant.get_processing_stats()
+        # Enhanced connectivity checks
+        connectivity = {
+            'notion': False,
+            'openai_key': bool(os.environ.get('OPENAI_API_KEY')),
+            'google_oauth': bool(os.environ.get('GOOGLE_CLIENT_SECRET_JSON'))
+        }
+        
+        # Test Notion connectivity
+        try:
+            if notion_manager:
+                # Try a simple database query to test connectivity
+                notion_manager._ensure_databases()
+                connectivity['notion'] = True
+        except Exception as e:
+            logger.warning(f"Notion connectivity check failed: {str(e)}")
+        
+        # Overall health status
+        overall_healthy = all(services.values()) and connectivity['openai_key'] and connectivity['google_oauth']
+        
         return jsonify({
-            'status': 'healthy',
-            'message': 'All systems operational',
+            'status': 'healthy' if overall_healthy else 'degraded',
+            'message': 'Core services operational' if overall_healthy else 'Some services degraded',
             'timestamp': datetime.utcnow().isoformat(),
-            'services': stats.get('services', {}),
+            'services': services,
+            'connectivity': connectivity,
             'version': '2.0.0',
+            'mode': 'multi-user',
             'uptime': 'Running'
         })
         
@@ -245,10 +379,24 @@ def health_check():
 def get_stats():
     """Get system statistics and capabilities"""
     try:
-        if not gmail_assistant:
-            return jsonify({'error': 'Gmail Assistant not initialized'}), 503
+        services = {
+            'auth': bool(auth_manager),
+            'user_manager': bool(user_manager),
+            'notion_api': bool(notion_manager)
+        }
+        if not all(services.values()):
+            return jsonify({'error': 'Core services not initialized', 'services': services}), 503
         
-        stats = gmail_assistant.get_processing_stats()
+        stats = {
+            'mode': 'multi-user',
+            'services': services,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        try:
+            users = user_manager.get_all_users()
+            stats['users_count'] = len(users)
+        except Exception:
+            stats['users_count'] = None
         return jsonify(stats)
         
     except Exception as e:
@@ -263,8 +411,25 @@ def get_stats():
 def process_emails():
     """Process recent emails through the AI pipeline"""
     try:
-        if not gmail_assistant:
-            return jsonify({'error': 'Gmail Assistant not initialized'}), 503
+        # Require authentication
+        if not auth_manager or not auth_manager.is_authenticated():
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        # Get current user
+        current_user = auth_manager.get_current_user()
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Create Gmail assistant with user credentials
+        user_creds = auth_manager.get_user_credentials()
+        if not user_creds:
+            return jsonify({'error': 'Invalid user credentials'}), 401
+        
+        user_config = {
+            'OPENAI_API_KEY': os.environ.get('OPENAI_API_KEY'),
+            'user_credentials': user_creds
+        }
+        user_assistant = GmailAssistant(user_config)
         
         # Parse request parameters
         data = request.get_json() or {}
@@ -284,20 +449,29 @@ def process_emails():
                 'message': 'max_results must be an integer between 1 and 100'
             }), 400
         
-        logger.info(f"📧 Processing emails request: {days} days, max {max_results} emails")
+        logger.info(f"📧 Processing emails request: {days} days, max {max_results} emails for user: {current_user.get('email')}")
         
         # Process emails
-        result = gmail_assistant.process_emails_batch(
+        result = user_assistant.process_emails_batch(
             days=days, 
             max_results=max_results
         )
         
+        # Save results to shared Notion database
+        if notion_manager:
+            try:
+                for email in result.get('emails', []):
+                    notion_manager.create_email_result(email, current_user['email'])
+                result['notion_sync_success'] = True
+            except Exception as e:
+                logger.error(f"❌ Notion sync failed: {str(e)}")
+                result['notion_sync_success'] = False
+        
         # Remove full email content from API response for performance
         if 'emails' in result:
             for email in result['emails']:
-                # Keep only essential fields for API response
-                email.pop('body', None)  # Remove full body content
-                email.pop('raw_headers', None)  # Remove raw headers
+                email.pop('body', None)
+                email.pop('raw_headers', None)
         
         return jsonify(result)
         
@@ -320,8 +494,22 @@ def process_emails():
 def process_batch():
     """Advanced batch processing with full analytics"""
     try:
-        if not gmail_assistant:
-            return jsonify({'error': 'Gmail Assistant not initialized'}), 503
+        if not auth_manager or not auth_manager.is_authenticated():
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        current_user = auth_manager.get_current_user()
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user_creds = auth_manager.get_user_credentials()
+        if not user_creds:
+            return jsonify({'error': 'Invalid user credentials'}), 401
+        
+        user_config = {
+            'OPENAI_API_KEY': os.environ.get('OPENAI_API_KEY'),
+            'user_credentials': user_creds
+        }
+        user_assistant = GmailAssistant(user_config)
         
         # Parse request parameters
         data = request.get_json() or {}
@@ -329,10 +517,10 @@ def process_batch():
         max_results = data.get('max_results', 50)
         include_full_data = data.get('include_full_data', False)
         
-        logger.info(f"🔄 Batch processing request: {days} days, max {max_results} emails")
+        logger.info(f"🔄 Batch processing request: {days} days, max {max_results} emails for user: {current_user.get('email')}")
         
         # Process emails with full pipeline
-        result = gmail_assistant.process_emails_batch(
+        result = user_assistant.process_emails_batch(
             days=days,
             max_results=max_results
         )
@@ -340,7 +528,6 @@ def process_batch():
         # Optionally remove full content for performance
         if not include_full_data and 'emails' in result:
             for email in result['emails']:
-                # Summarize email data
                 email.pop('body', None)
                 email.pop('raw_headers', None)
         
@@ -356,22 +543,36 @@ def process_batch():
 
 @app.route('/api/test-connection', methods=['GET'])
 def test_connection():
-    """Test API connections without processing emails"""
+    """Test API connections without processing emails (multi-user only)"""
     try:
-        if not gmail_assistant:
-            return jsonify({'error': 'Gmail Assistant not initialized'}), 503
+        if not auth_manager or not auth_manager.is_authenticated():
+            return jsonify({'error': 'Authentication required'}), 401
+        
+        current_user = auth_manager.get_current_user()
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user_creds = auth_manager.get_user_credentials()
+        if not user_creds:
+            return jsonify({'error': 'Invalid user credentials'}), 401
+        
+        user_config = {
+            'OPENAI_API_KEY': os.environ.get('OPENAI_API_KEY'),
+            'user_credentials': user_creds
+        }
+        user_assistant = GmailAssistant(user_config)
         
         # Test individual services
         test_results = {
             'gmail_api': False,
             'openai_api': False,
-            'notion_api': False,
+            'notion_api': bool(notion_manager),
             'overall_status': False
         }
         
         # Test Gmail API
         try:
-            profile = gmail_assistant.gmail_service.users().getProfile(userId='me').execute()
+            profile = user_assistant.gmail_service.users().getProfile(userId='me').execute()
             test_results['gmail_api'] = True
             test_results['gmail_email'] = profile.get('emailAddress', 'Unknown')
         except Exception as e:
@@ -379,7 +580,7 @@ def test_connection():
         
         # Test OpenAI API
         try:
-            response = gmail_assistant.openai_client.chat.completions.create(
+            response = user_assistant.openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": "Test connection - reply with 'OK'"}],
                 max_tokens=10,
@@ -389,19 +590,6 @@ def test_connection():
                 test_results['openai_api'] = True
         except Exception as e:
             test_results['openai_error'] = str(e)
-        
-        # Test Notion API
-        if gmail_assistant.notion_client:
-            try:
-                # Test by listing databases (limited access)
-                gmail_assistant.notion_client.search(
-                    filter={"property": "object", "value": "database"}
-                )
-                test_results['notion_api'] = True
-            except Exception as e:
-                test_results['notion_error'] = str(e)
-        else:
-            test_results['notion_error'] = 'Notion not configured'
         
         # Overall status
         test_results['overall_status'] = (
@@ -420,51 +608,117 @@ def test_connection():
         }), 500
 
 
-@app.route("/api/test-refresh-token", methods=['GET'])
-def test_gmail_refresh():
+
+# Multi-user API endpoints
+@app.route('/api/user/profile', methods=['GET'])
+def get_user_profile():
+    """Get current user profile"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    current_user = auth_manager.get_current_user()
+    if not current_user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Return safe user data (no sensitive tokens)
+    safe_user_data = {
+        'email': current_user['email'],
+        'status': current_user['status'],
+        'created_at': current_user['created_at'],
+        'last_login': current_user['last_login']
+    }
+    
+    return jsonify(safe_user_data)
+
+@app.route('/api/user/results', methods=['GET'])
+def get_user_results():
+    """Get email processing results for current user"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    if not notion_manager:
+        return jsonify({'error': 'Results database not configured'}), 503
+    
+    current_user = auth_manager.get_current_user()
+    if not current_user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Get query parameters
+    days = request.args.get('days', 30, type=int)
+    limit = request.args.get('limit', 100, type=int)
+    
     try:
-        # 1) Read GOOGLE_OAUTH_TOKEN JSON from env
-        token_json = json.loads(os.getenv("GOOGLE_OAUTH_TOKEN"))
-
-        # 2) Build credentials with refresh_token
-        creds = Credentials(
-            token=None,  # force refresh
-            refresh_token=token_json["refresh_token"],
-            token_uri=token_json["token_uri"],
-            client_id=token_json["client_id"],
-            client_secret=token_json["client_secret"],
-            scopes=token_json["scopes"]
-        )
-
-        # 3) Refresh token (get new access token)
-        creds.refresh(Request())
-
-        # 4) Call Gmail API to verify
-        service = build("gmail", "v1", credentials=creds)
-        profile = service.users().getProfile(userId="me").execute()
-
+        results = notion_manager.get_user_results(current_user['email'], days)
         return jsonify({
-            "status": "success",
-            "email": profile["emailAddress"],
-            "new_access_token": creds.token
+            'results': results[:limit],
+            'total_count': len(results),
+            'user_email': current_user['email']
         })
-
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logger.error(f"❌ Failed to get user results: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve results'}), 500
+
+@app.route('/api/admin/users', methods=['GET'])
+def get_all_users():
+    """Get all users (admin only)"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    if not user_manager:
+        return jsonify({'error': 'User management not configured'}), 503
+    
+    try:
+        users = user_manager.get_all_users()
+        # Return safe user data
+        safe_users = []
+        for user in users:
+            safe_users.append({
+                'email': user['email'],
+                'status': user['status'],
+                'created_at': user['created_at'],
+                'last_login': user['last_login']
+            })
+        
+        return jsonify({'users': safe_users, 'total_count': len(safe_users)})
+    except Exception as e:
+        logger.error(f"❌ Failed to get users: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve users'}), 500
+
+@app.route('/api/admin/statistics', methods=['GET'])
+def get_admin_statistics():
+    """Get system-wide statistics (admin only)"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    if not notion_manager:
+        return jsonify({'error': 'Results database not configured'}), 503
+    
+    try:
+        days = request.args.get('days', 30, type=int)
+        stats = notion_manager.get_results_statistics(days=days)
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"❌ Failed to get statistics: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve statistics'}), 500
 
 
 if __name__ == '__main__':
     try:
-        # Initialize the Gmail Assistant
-        initialize_assistant()
+        # Initialize all services
+        initialize_services()
         
         # Load configuration
         config = load_config()
         
         # Run the Flask application
-        logger.info(f"🚀 Starting FIT Group Gmail Assistant API on {config['HOST']}:{config['PORT']}")
+        logger.info(f"🚀 Starting FIT Group Multi-User Gmail Assistant API on {config['HOST']}:{config['PORT']}")
         logger.info(f"📧 Environment: {config['FLASK_ENV']}")
         logger.info(f"🔧 Debug mode: {config['DEBUG']}")
+        
+        if user_manager and auth_manager:
+            logger.info("✅ Multi-user mode enabled")
+        else:
+            logger.error("❌ Multi-user services not initialized")
         
         app.run(
             host=config['HOST'],

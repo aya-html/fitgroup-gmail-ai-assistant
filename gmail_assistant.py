@@ -28,7 +28,6 @@ from email import message_from_bytes
 
 # External dependencies
 from google.oauth2.credentials import Credentials
-from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from openai import OpenAI
@@ -140,31 +139,33 @@ class GmailAssistant:
         try:
             scopes = ['https://www.googleapis.com/auth/gmail.readonly']
             
-            # Try service account first (recommended for production)
-            if self.config.get('GOOGLE_SERVICE_ACCOUNT_JSON'):
-                service_account_info = json.loads(
-                    self.config.get('GOOGLE_SERVICE_ACCOUNT_JSON')
-                )
-                credentials = service_account.Credentials.from_service_account_info(
-                    service_account_info, scopes=scopes
-                )
-                # For service account, you need to specify the user email
-                credentials = credentials.with_subject(
-                    self.config.get('GMAIL_USER_EMAIL', 'admin@fitgroup.com')
-                )
-            
-            # Fallback to OAuth token
-            elif self.config.get('GOOGLE_OAUTH_TOKEN'):
-                token_info = json.loads(self.config.get('GOOGLE_OAUTH_TOKEN'))
-                credentials = Credentials.from_authorized_user_info(
-                    token_info, scopes
-                )
+            # Priority 1: User credentials from AuthManager (multi-user mode)
+            if self.config.get('user_credentials'):
+                user_creds = self.config['user_credentials']
+                
+                # If it's already a Credentials object
+                if isinstance(user_creds, Credentials):
+                    credentials = user_creds
+                # If it's a dict/token info
+                elif isinstance(user_creds, dict):
+                    if 'token' in user_creds:
+                        credentials = Credentials.from_authorized_user_info(user_creds, scopes)
+                    else:
+                        credentials = Credentials.from_authorized_user_info(user_creds, scopes)
+                # If it's a JSON string
+                elif isinstance(user_creds, str):
+                    token_info = json.loads(user_creds)
+                    credentials = Credentials.from_authorized_user_info(token_info, scopes)
+                else:
+                    raise EmailProcessingError(f"Unsupported user_credentials type: {type(user_creds)}")
+                
+                self.logger.info("✅ Gmail API authenticated with user credentials")
             
             else:
                 raise EmailProcessingError("No valid Google credentials provided")
             
             self.gmail_service = build('gmail', 'v1', credentials=credentials)
-            self.logger.info("✅ Gmail API authenticated successfully")
+            self.logger.info("✅ Gmail API service built successfully")
             
         except Exception as e:
             self.logger.error(f"❌ Gmail setup failed: {str(e)}")
