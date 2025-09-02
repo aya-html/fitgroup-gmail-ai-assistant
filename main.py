@@ -137,16 +137,10 @@ with app.app_context():
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({
-        'error': 'Endpoint not found',
-        'message': 'The requested URL was not found on this server.',
-        'available_endpoints': [
-            '/api/health',
-            '/api/process-emails',
-            '/api/stats',
-            '/api/process-batch'
-        ]
-    }), 404
+    """Redirect to appropriate page when a route is not found"""
+    if auth_manager and auth_manager.is_authenticated():
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login_page'))
 
 
 @app.errorhandler(500)
