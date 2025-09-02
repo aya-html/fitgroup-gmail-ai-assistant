@@ -667,12 +667,36 @@
         .hidden {
             display: none;
         }
+
+        /* User header bar */
+        .user-bar {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 2;
+        }
+        .user-email {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <div class="user-bar">
+                <span id="user-email" class="user-email"><i class="fas fa-user-circle"></i> Loading...</span>
+                <a href="/logout" class="btn btn-danger btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
             <h1><i class="fas fa-robot"></i> FIT Group Gmail AI Assistant</h1>
             <p>Enterprise Email Intelligence & Automation Platform</p>
             <p><strong>API Endpoint:</strong> <span id="api-endpoint">https://fitgroup-gmail-ai-api.onrender.com</span></p>
@@ -821,12 +845,30 @@
         
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            checkSystemHealth();
             updateApiEndpoint();
+            fetchUserProfile();
+            checkSystemHealth();
         });
 
         function updateApiEndpoint() {
             document.getElementById('api-endpoint').textContent = API_BASE_URL;
+        }
+
+        async function fetchUserProfile() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/user/profile`, { credentials: 'include' });
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await response.json();
+                const el = document.getElementById('user-email');
+                if (el) {
+                    el.innerHTML = `<i class="fas fa-user-circle"></i> ${data.email || 'Account'}`;
+                }
+            } catch (error) {
+                // keep placeholder on error
+            }
         }
 
         // Check system health on load
@@ -1156,4 +1198,3 @@
     </script>
 </body>
 </html>
-
