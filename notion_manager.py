@@ -66,6 +66,41 @@ class NotionManager:
             self.logger.warning(f"⚠️ Failed to load results DB schema: {e}")
             self._results_properties = {}
 
+    def _ensure_results_property(self, name: str, ptype: str) -> None:
+        """Ensure a property exists on the results database with the desired type.
+        Supports common types, primarily multi_select for 'Labels'."""
+        try:
+            current = self._prop_type('results', name)
+            if current == ptype:
+                return
+            props_update: Dict[str, Any] = {}
+            if ptype == 'multi_select':
+                props_update[name] = {"multi_select": {}}
+            elif ptype == 'select':
+                props_update[name] = {"select": {}}
+            elif ptype == 'rich_text':
+                props_update[name] = {"rich_text": {}}
+            elif ptype == 'title':
+                props_update[name] = {"title": {}}
+            elif ptype == 'date':
+                props_update[name] = {"date": {}}
+            elif ptype == 'email':
+                props_update[name] = {"email": {}}
+            elif ptype == 'number':
+                props_update[name] = {"number": {}}
+            elif ptype == 'checkbox':
+                props_update[name] = {"checkbox": {}}
+            else:
+                return
+            self.notion_client.databases.update(
+                database_id=self.results_db_id,
+                properties=props_update
+            )
+            self._load_schemas()
+            self.logger.info(f"✅ Ensured results property '{name}' exists as type '{ptype}'")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to ensure results property '{name}' as {ptype}: {e}")
+
     def _prop_type(self, db: str, prop: str) -> Optional[str]:
         props = self._results_properties if db == 'results' else self._users_properties
         p = props.get(prop)
@@ -124,6 +159,8 @@ class NotionManager:
         """Create a new email result entry in the shared results database (schema-aware)"""
         try:
             self._load_schemas()  # refresh in case schema changed
+            # Ensure Labels property exists as multi_select for saving Gmail labels
+            self._ensure_results_property('Labels', 'multi_select')
 
             props: Dict[str, Any] = {}
 
@@ -241,6 +278,13 @@ class NotionManager:
                     p = self._build_prop('results', 'Commands', commands_text)
                 if p is not None:
                     props['Commands'] = p
+
+            # Labels (Gmail) as multi-select
+            if 'Labels' in self._results_properties:
+                labels_list = email_data.get('labels') or []
+                p = self._build_prop('results', 'Labels', labels_list)
+                if p is not None:
+                    props['Labels'] = p
 
             # Summary
             if 'Summary' in self._results_properties and summary:
@@ -419,6 +463,9 @@ class NotionManager:
                 'thread_id': self._extract_rich_text(properties, 'Thread ID'),
                 'notes': self._extract_rich_text(properties, 'Notes'),
             }
+            # Extract Labels multi-select if present
+            if 'Labels' in properties and properties['Labels'].get('type') == 'multi_select':
+                data['labels'] = [it.get('name', '') for it in properties['Labels'].get('multi_select', []) if it.get('name')]
             return data
         except Exception as e:
             self.logger.error(f"❌ Failed to parse result page: {str(e)}")

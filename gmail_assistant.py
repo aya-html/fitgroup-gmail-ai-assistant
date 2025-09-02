@@ -96,6 +96,7 @@ class GmailAssistant:
         self.openai_client = None
         self.notion_client = None
         self.max_email_length = 50000
+        self._labels_map = None
         
         self._initialize_services()
     
@@ -171,6 +172,22 @@ class GmailAssistant:
             self.logger.error(f"❌ Gmail setup failed: {str(e)}")
             raise
     
+    def _get_labels_map(self) -> Dict[str, str]:
+        """Fetch and cache Gmail label id->name mapping for the current user"""
+        try:
+            if self._labels_map is not None:
+                return self._labels_map
+            labels_map: Dict[str, str] = {}
+            result = self.gmail_service.users().labels().list(userId='me').execute()
+            for lbl in result.get('labels', []):
+                labels_map[lbl.get('id')] = lbl.get('name') or lbl.get('id')
+            self._labels_map = labels_map
+            return labels_map
+        except Exception as e:
+            self.logger.warning(f"Failed to load Gmail labels: {str(e)}")
+            self._labels_map = {}
+            return self._labels_map
+
     def fetch_recent_emails(self, days: int = 7, max_results: int = 50, batch_size: int = 5) -> List[Dict[str, Any]]:
         """
         Fetch recent emails from Gmail inbox with full content extraction
@@ -283,6 +300,11 @@ class GmailAssistant:
             timestamp = timestamp_ms / 1000 if timestamp_ms else 0
             date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S') if timestamp else ''
 
+            # Map Gmail label IDs to human-readable names
+            labels_ids = message.get('labelIds', []) or []
+            labels_map = self._get_labels_map()
+            labels = [labels_map.get(lid, lid) for lid in labels_ids]
+
             # Extract email body
             body = self._extract_email_body(payload)
 
@@ -302,7 +324,8 @@ class GmailAssistant:
                 'timestamp': timestamp,
                 'body': body,
                 'detected_language': detected_language,
-                'raw_headers': headers
+                'raw_headers': headers,
+                'labels': labels
             }
 
             return email_data
@@ -710,6 +733,9 @@ class GmailAssistant:
                     },
                     "Commands": {
                         "multi_select": [{"name": cmd} for cmd in email.get('detected_commands', [])]
+                    },
+                    "Labels": {
+                        "multi_select": [{"name": lbl} for lbl in email.get('labels', [])]
                     },
                     "Tone": {
                         "select": {"name": email.get('tone', 'neutral')}
