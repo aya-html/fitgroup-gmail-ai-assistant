@@ -687,6 +687,40 @@
             font-size: 0.85rem;
             border-radius: 10px;
         }
+        /* Detailed Results Table Panel */
+        .table-panel { background: var(--bg-card); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 20px; padding: 24px; box-shadow: var(--card-shadow); margin-bottom: 32px; position: relative; overflow: hidden; }
+        .table-panel h2 { color: var(--text-primary); font-size: 1.25rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
+        .table-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+        .table-controls .control { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
+        .table-controls .control label { color: var(--text-secondary); font-size: 0.85rem; }
+        .table-controls .control input[type="text"], .table-controls .control select { padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-primary); }
+        .table-controls .actions { margin-left: auto; display: flex; gap: 10px; }
+        .results-table { width: 100%; border-collapse: collapse; }
+        .results-table th, .results-table td { padding: 12px 10px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
+        .results-table th { color: var(--text-secondary); text-align: left; font-weight: 600; position: sticky; top: 0; background: var(--bg-card); z-index: 1; }
+        .results-table tr:hover { background: rgba(255,255,255,0.02); }
+        .sortable { cursor: pointer; }
+        .sortable .sort-indicator { margin-left: 6px; opacity: 0.6; }
+        .ellipsis { max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .summary-ellipsis { max-width: 420px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .chip { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; color: #fff; margin: 2px 4px 2px 0; background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%); }
+        .badge-soft { display:inline-block; padding:4px 8px; border-radius:10px; font-size:0.75rem; font-weight:700; }
+        .badge-success { background: rgba(1,181,116,.15); color: #01B574; border: 1px solid rgba(1,181,116,.35); }
+        .badge-danger { background: rgba(238,93,80,.15); color: #EE5D50; border: 1px solid rgba(238,93,80,.35); }
+        .badge-info-soft { background: rgba(67,24,255,.15); color: #b7a9ff; border: 1px solid rgba(67,24,255,.35); }
+        .badge-warning-soft { background: rgba(255,181,71,.15); color: #FFB547; border: 1px solid rgba(255,181,71,.35); }
+        .table-loading { position: absolute; inset: 0; background: rgba(11,20,55,0.85); display:flex; align-items:center; justify-content:center; z-index: 5; }
+        .table-loading .spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,.15); border-top-color: var(--accent-blue); border-radius: 50%; animation: loader-spin 1s linear infinite; }
+        .pagination { display:flex; align-items:center; justify-content:flex-end; gap: 10px; padding-top: 12px; }
+        .pagination .page-btn { padding: 8px 12px; border-radius: 10px; background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; }
+        .pagination .page-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .pagination .page-info { color: var(--text-secondary); }
+        .toast { position: fixed; right: 24px; bottom: 24px; background: var(--bg-secondary); color: #fff; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--card-shadow); z-index: 999; display: flex; align-items: center; gap: 10px; }
+        .toast-error { border-color: rgba(238,93,80,.35); }
+        .toast-success { border-color: rgba(1,181,116,.35); }
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; background-color: #222; color: #fff; text-align: left; border-radius: 6px; padding: 6px 8px; position: absolute; z-index: 10; bottom: 125%; left: 50%; transform: translateX(-50%); min-width: 220px; border: 1px solid #444; }
+        .tooltip:hover .tooltiptext { visibility: visible; }
     </style>
 </head>
 <body>
@@ -832,6 +866,80 @@
             </div>
         </div>
 
+        <!-- Detailed Email Results Panel -->
+        <div class="table-panel" id="detailed-table-panel">
+            <h2><i class="fas fa-table"></i> Detailed Email Results</h2>
+
+            <div class="table-controls">
+                <div class="control">
+                    <label for="dt-filter-user">User</label>
+                    <select id="dt-filter-user">
+                        <option value="current" selected>Current User</option>
+                    </select>
+                </div>
+                <div class="control">
+                    <label for="dt-filter-labels">Labels</label>
+                    <select id="dt-filter-labels" multiple>
+                        <option value="INBOX" selected>INBOX</option>
+                    </select>
+                </div>
+                <div class="control">
+                    <label for="dt-filter-date">Date Range</label>
+                    <select id="dt-filter-date">
+                        <option value="24h">Last 24h</option>
+                        <option value="7d" selected>Last 7d</option>
+                        <option value="30d">Last 30d</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="control hidden" id="dt-custom-date-wrap">
+                    <label>Custom From / To</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="date" id="dt-date-from">
+                        <input type="date" id="dt-date-to">
+                    </div>
+                </div>
+                <div class="control" style="flex:1; min-width:240px;">
+                    <label for="dt-filter-search">Search</label>
+                    <input type="text" id="dt-filter-search" placeholder="Search subject, from, summary">
+                </div>
+                <div class="actions">
+                    <button class="btn btn-info" id="dt-refresh"><i class="fas fa-rotate"></i> Refresh</button>
+                    <button class="btn btn-primary" id="dt-process"><i class="fas fa-magic"></i> Process</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper" style="position:relative;">
+                <div id="dt-loading" class="table-loading hidden"><div class="spinner"></div></div>
+                <table class="results-table" id="dt-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort-key="date">Date <span class="sort-indicator"><i class="fas fa-sort"></i></span></th>
+                            <th class="sortable" data-sort-key="from">From <span class="sort-indicator"><i class="fas fa-sort"></i></span></th>
+                            <th class="sortable" data-sort-key="subject">Subject <span class="sort-indicator"><i class="fas fa-sort"></i></span></th>
+                            <th>Summary</th>
+                            <th>Detected Commands</th>
+                            <th>Team Tag</th>
+                            <th>Action Taken</th>
+                            <th>Labels</th>
+                            <th>Notion</th>
+                            <th class="sortable" data-sort-key="status">Status <span class="sort-indicator"><i class="fas fa-sort"></i></span></th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dt-tbody"></tbody>
+                </table>
+                <div class="pagination">
+                    <button class="page-btn" id="dt-prev">Prev</button>
+                    <span class="page-info" id="dt-page-info">Page 1 of 1</span>
+                    <button class="page-btn" id="dt-next">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast hidden"><i class="fas fa-info-circle"></i><span></span></div>
+
         <!-- Footer -->
         <div class="footer">
             <p>&copy; 2025 FIT Group - Advanced Email Intelligence Platform | Powered by OpenAI GPT-4</p>
@@ -848,6 +956,8 @@
             updateApiEndpoint();
             fetchUserProfile();
             checkSystemHealth();
+            dtInitControls();
+            dtFetchAndRender();
         });
 
         function updateApiEndpoint() {
@@ -1195,6 +1305,215 @@
 
         // Auto-refresh status every 5 minutes
         setInterval(checkSystemHealth, 300000);
+
+        // ===== Detailed Table Panel Logic =====
+        const dtState = {
+            data: [],
+            filtered: [],
+            page: 1,
+            perPage: 25,
+            sortKey: 'date',
+            sortDir: 'desc',
+            filters: { user: 'current', labels: ['INBOX'], datePreset: '7d', from: null, to: null, search: '' }
+        };
+
+        function dtInitControls() {
+            const userSel = document.getElementById('dt-filter-user');
+            const labelsSel = document.getElementById('dt-filter-labels');
+            const dateSel = document.getElementById('dt-filter-date');
+            const customWrap = document.getElementById('dt-custom-date-wrap');
+            const fromInput = document.getElementById('dt-date-from');
+            const toInput = document.getElementById('dt-date-to');
+            const searchInp = document.getElementById('dt-filter-search');
+            const btnRefresh = document.getElementById('dt-refresh');
+            const btnProcess = document.getElementById('dt-process');
+            const btnPrev = document.getElementById('dt-prev');
+            const btnNext = document.getElementById('dt-next');
+
+            if (!userSel) return;
+
+            (async () => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/admin/users`);
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    userSel.innerHTML = '<option value="current" selected>Current User</option><option value="all">All Users</option>' +
+                        data.users.map(u=>`<option value="${u.email}">${u.email}</option>`).join('');
+                } catch {}
+            })();
+
+            // Set initial visibility for custom date range
+            if (customWrap) {
+                const isCustom = (dateSel && dateSel.value === 'custom');
+                customWrap.classList.toggle('hidden', !isCustom);
+                customWrap.style.display = isCustom ? 'block' : 'none';
+            }
+
+            userSel.addEventListener('change', () => {
+                dtState.filters.user = userSel.value;
+                dtFetchAndRender();
+            });
+            labelsSel.addEventListener('change', () => { dtState.filters.labels = Array.from(labelsSel.selectedOptions).map(o=>o.value); dtState.page = 1; dtApplyFiltersAndRender(); });
+            dateSel.addEventListener('change', () => {
+                dtState.filters.datePreset = dateSel.value;
+                if (customWrap) {
+                    const isCustom = (dateSel.value === 'custom');
+                    customWrap.classList.toggle('hidden', !isCustom);
+                    customWrap.style.display = isCustom ? 'block' : 'none';
+                }
+                if (dateSel.value !== 'custom') dtFetchAndRender();
+            });
+            fromInput.addEventListener('change', (e)=>{ dtState.filters.from = e.target.value; });
+            toInput.addEventListener('change', (e)=>{ dtState.filters.to = e.target.value; dtFetchAndRender(); });
+            searchInp.addEventListener('input', () => { dtState.filters.search = searchInp.value.trim().toLowerCase(); dtState.page = 1; dtApplyFiltersAndRender(); });
+            btnRefresh.addEventListener('click', () => dtFetchAndRender());
+            btnProcess.addEventListener('click', () => dtProcessForContext());
+            btnPrev.addEventListener('click', () => { if (dtState.page>1){ dtState.page--; dtRenderTable(); } });
+            btnNext.addEventListener('click', () => { const totalPages = Math.max(1, Math.ceil(dtState.filtered.length / dtState.perPage)); if (dtState.page<totalPages){ dtState.page++; dtRenderTable(); } });
+
+            document.querySelectorAll('#dt-table th.sortable').forEach(th => {
+                th.addEventListener('click', ()=>{
+                    const key = th.getAttribute('data-sort-key');
+                    if (dtState.sortKey === key) { dtState.sortDir = (dtState.sortDir==='asc'?'desc':'asc'); }
+                    else { dtState.sortKey = key; dtState.sortDir = 'desc'; }
+                    dtApplyFiltersAndRender();
+                });
+            });
+        }
+
+        function dtComputeDays() {
+            const p = dtState.filters.datePreset;
+            if (p === '24h') return 1;
+            if (p === '7d') return 7;
+            if (p === '30d') return 30;
+            const f = dtState.filters.from; const t = dtState.filters.to;
+            if (f && t) {
+                const df = new Date(f); const dt = new Date(t);
+                const diff = Math.ceil((dt - df) / (1000*60*60*24)) + 1;
+                if (diff > 0) return Math.min(Math.max(diff,1), 30);
+            }
+            return 7;
+        }
+
+        async function dtFetchAndRender() {
+            dtSetLoading(true);
+            try {
+                const days = dtComputeDays();
+                const res = await fetch(`${API_BASE_URL}/api/user/results?days=${days}&limit=250`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                dtState.data = Array.isArray(data.results) ? data.results : [];
+                dtState.page = 1;
+                dtBuildLabelsFromData();
+                dtApplyFiltersAndRender();
+                if (dtState.data.length === 0) {
+                    const tbody = document.getElementById('dt-tbody');
+                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color: var(--text-secondary); padding: 24px;">No results yet. Adjust filters or click Process.</td></tr>`;
+                }
+            } catch (e) {
+                dtShowToast(`Failed to load results: ${e.message}`, 'error');
+            } finally {
+                dtSetLoading(false);
+            }
+        }
+
+        function dtBuildLabelsFromData(){
+            const labelsSel = document.getElementById('dt-filter-labels');
+            const set = new Set(['INBOX']);
+            dtState.data.forEach(item => { dtNormalizeLabels(item).forEach(l => set.add(l)); });
+            labelsSel.innerHTML = Array.from(set).sort().map(l=>`<option value="${l}" ${l==='INBOX'?'selected':''}>${l}</option>`).join('');
+            dtState.filters.labels = Array.from(labelsSel.selectedOptions).map(o=>o.value);
+        }
+
+        function dtApplyFiltersAndRender(){
+            const q = dtState.filters.search;
+            const activeLabels = new Set(dtState.filters.labels);
+            dtState.filtered = dtState.data.filter(item => {
+                const subj = (item.subject || '').toLowerCase();
+                const from = (item.from || item.sender || '').toLowerCase();
+                const summary = (item.summary || item.ai_summary || '').toLowerCase();
+                const matchesSearch = !q || subj.includes(q) || from.includes(q) || summary.includes(q);
+                const labels = dtNormalizeLabels(item);
+                const matchesLabels = activeLabels.size === 0 || labels.some(l => activeLabels.has(l));
+                return matchesSearch && matchesLabels;
+            });
+            const key = dtState.sortKey; const dir = dtState.sortDir === 'asc' ? 1 : -1;
+            dtState.filtered.sort((a,b)=>{ const va = dtGetComparable(a,key), vb = dtGetComparable(b,key); if (va < vb) return -1*dir; if (va > vb) return 1*dir; return 0; });
+            dtState.page = 1;
+            dtRenderTable();
+        }
+
+        function dtGetComparable(item, key){
+            if (key === 'date') return new Date(item.date || item.received_at || item.created_at || item.timestamp || 0).getTime();
+            if (key === 'from') return (item.from || item.sender || '').toLowerCase();
+            if (key === 'subject') return (item.subject || '').toLowerCase();
+            if (key === 'status') return (item.status || (item.error ? 'failed' : 'processed')).toLowerCase();
+            return '';
+        }
+
+        function dtRenderTable(){
+            const tbody = document.getElementById('dt-tbody');
+            const start = (dtState.page - 1) * dtState.perPage; const end = start + dtState.perPage;
+            const rows = dtState.filtered.slice(start, end).map(dtRenderRow).join('');
+            tbody.innerHTML = rows || `<tr><td colspan="11" style="text-align:center; color: var(--text-secondary); padding: 24px;">No results match current filters.</td></tr>`;
+            const totalPages = Math.max(1, Math.ceil(dtState.filtered.length / dtState.perPage));
+            document.getElementById('dt-page-info').textContent = `Page ${dtState.page} of ${totalPages}`;
+            document.getElementById('dt-prev').disabled = dtState.page <= 1;
+            document.getElementById('dt-next').disabled = dtState.page >= totalPages;
+        }
+
+        function dtRenderRow(item){
+            const dateStr = dtFormatLocalDate(item.date || item.received_at || item.created_at || item.timestamp);
+            const fromStr = dtFormatFrom(item);
+            const subject = dtEscape(item.subject || '(no subject)');
+            const gmailUrl = dtBuildGmailUrl(item);
+            const summary = dtEscape(item.summary || item.ai_summary || '');
+            const commands = Array.isArray(item.detected_commands) ? item.detected_commands : (typeof item.detected_commands === 'string' ? item.detected_commands.split(',').map(s=>s.trim()).filter(Boolean) : []);
+            const team = dtEscape(item.team_tag || item.team || '');
+            const action = dtEscape(item.action_taken || '');
+            const labels = dtNormalizeLabels(item).map(l=>`<span class=\"badge-soft badge-info-soft\">${dtEscape(l)}</span>`).join(' ');
+            const notionUrl = item.notion_url || item.notion_page_url || '';
+            const failed = String(item.status || '').toLowerCase() === 'failed' || !!item.error;
+            const statusBadge = failed ? `<span class=\"badge-soft badge-danger\">Failed</span>` : `<span class=\"badge-soft badge-success\">Processed</span>`;
+            const err = item.error ? dtEscape(String(item.error)) : '';
+            const errorIcon = err ? `<span class=\"tooltip\"><i class=\"fas fa-circle-exclamation\" style=\"color:#EE5D50\"></i><span class=\"tooltiptext\">${err}</span></span>` : '';
+            return `
+                <tr>
+                    <td>${dateStr}</td>
+                    <td class=\"ellipsis\" title=\"${dtEscape(fromStr)}\">${dtEscape(fromStr)}</td>
+                    <td class=\"ellipsis\" title=\"${subject}\"><a href=\"${gmailUrl}\" target=\"_blank\" style=\"color:#b7a9ff; text-decoration:none;\">${subject}</a></td>
+                    <td class=\"summary-ellipsis\" title=\"${summary}\">${summary}</td>
+                    <td>${commands.map(c=>`<span class=\\\"chip\\\">${dtEscape(c)}</span>`).join(' ')}</td>
+                    <td>${team || ''}</td>
+                    <td>${action ? `<span class=\\\"badge-soft badge-warning-soft\\\">${action}</span>` : ''}</td>
+                    <td>${labels}</td>
+                    <td>${notionUrl ? `<a href=\"${notionUrl}\" target=\"_blank\" title=\"Open in Notion\"><i class=\"fab fa-notion\"></i></a>` : ''}</td>
+                    <td>${statusBadge}</td>
+                    <td>${errorIcon}</td>
+                </tr>`;
+        }
+
+        function dtNormalizeLabels(item){ if (Array.isArray(item.labels)) return item.labels; if (typeof item.labels === 'string') return item.labels.split(',').map(s=>s.trim()).filter(Boolean); return []; }
+        function dtFormatLocalDate(v){ try{ const d=new Date(v); return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' }); }catch{return String(v||'');} }
+        function dtFormatFrom(item){ if (item.from) return item.from; const name=item.from_name||item.sender_name||''; const email=item.from_email||item.sender_email||''; return (name||email)?`${name?name+' ':''}${email?'<' + email + '>':''}`:''; }
+        function dtBuildGmailUrl(item){ const threadId=item.thread_id||item.gmail_thread_id||item.threadId||''; if (threadId) return `https://mail.google.com/mail/u/0/#inbox/${threadId}`; const messageId=item.message_id||item.gmail_message_id||''; if (messageId) return `https://mail.google.com/mail/u/0/#all/${messageId}`; return 'https://mail.google.com/mail/u/0/#inbox'; }
+        function dtEscape(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+        async function dtProcessForContext(){
+            try {
+                dtSetLoading(true);
+                const days = dtComputeDays();
+                const res = await fetch(`${API_BASE_URL}/api/process-emails`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ days, max_results: 50 }) });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                dtShowToast('Processing started for current context', 'success');
+                await dtFetchAndRender();
+            } catch (e) {
+                dtShowToast('Process failed: '+e.message, 'error');
+            } finally { dtSetLoading(false); }
+        }
+
+        function dtSetLoading(flag){ const el=document.getElementById('dt-loading'); if (el) el.classList.toggle('hidden', !flag); }
+        function dtShowToast(message, type='info'){ let t=document.getElementById('toast'); if(!t){return;} t.classList.remove('toast-error','toast-success','hidden'); if(type==='error') t.classList.add('toast-error'); if(type==='success') t.classList.add('toast-success'); t.innerHTML = `<i class="fas fa-info-circle"></i><span>${dtEscape(message)}</span>`; setTimeout(()=>{ t.classList.add('hidden'); }, 4000); }
     </script>
 </body>
 </html>
