@@ -456,7 +456,7 @@ def process_emails():
             days=days, 
             max_results=max_results
         )
-        
+        logger.error(f"current_user: {current_user} user_creds: {user_creds} user_assistant: {user_assistant}")
         # Save results to shared Notion database
         if notion_manager:
             try:
@@ -466,6 +466,8 @@ def process_emails():
             except Exception as e:
                 logger.error(f"❌ Notion sync failed: {str(e)}")
                 result['notion_sync_success'] = False
+        else:
+            logger.error(f"❌ Notion sync failed: no notion_manager")
         
         # Remove full email content from API response for performance
         if 'emails' in result:
