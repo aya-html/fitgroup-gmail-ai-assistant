@@ -38,8 +38,8 @@ echo ""
 echo "🔍 Checking Environment Configuration..."
 
 # Check required variables
-required_vars=("OPENAI_API_KEY")
-optional_vars=("NOTION_TOKEN" "NOTION_DATABASE_ID" "GMAIL_USER_EMAIL")
+required_vars=("OPENAI_API_KEY" "GOOGLE_CLIENT_SECRET_JSON" "NOTION_TOKEN" "NOTION_USERS_DB_ID" "NOTION_RESULTS_DB_ID")
+optional_vars=("FLASK_ENV" "DEBUG" "PORT" "HOST")
 
 all_required_set=true
 for var in "${required_vars[@]}"; do
@@ -48,14 +48,6 @@ for var in "${required_vars[@]}"; do
     fi
 done
 
-# Check for Google authentication
-if [ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" ] && [ -z "$GOOGLE_OAUTH_TOKEN" ]; then
-    echo "❌ Error: Neither GOOGLE_SERVICE_ACCOUNT_JSON nor GOOGLE_OAUTH_TOKEN is set"
-    echo "   At least one Google authentication method is required"
-    all_required_set=false
-else
-    echo "✅ Google authentication configured"
-fi
 
 # Check optional variables
 echo ""
