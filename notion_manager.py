@@ -5,9 +5,8 @@ Manages shared Notion database operations for multi-user email processing.
 Handles both user management and email results storage.
 """
 
-import os
-import json
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from notion_client import Client as NotionClient
@@ -22,389 +21,466 @@ class NotionManager:
         self.users_db_id = users_db_id
         self.results_db_id = results_db_id
         self.logger = logging.getLogger(__name__)
+
+        # Cached schemas
+        self._users_properties: Dict[str, Any] = {}
+        self._results_properties: Dict[str, Any] = {}
         
-        # Ensure databases exist
+        # Ensure databases exist and load schema
         self._ensure_databases()
+        self._load_schemas()
     
+    # -----------------
+    # Schema management
+    # -----------------
     def _ensure_databases(self):
         """Ensure both users and results databases exist"""
         try:
-            # Check users database
             users_db = self.notion_client.databases.retrieve(database_id=self.users_db_id)
-            self.logger.info(f"✅ Users database found: {users_db.get('title', [{}])[0].get('plain_text', 'Unknown')}")
-            
-            # Check results database
+            self.logger.info(
+                f"✅ Users database found: {users_db.get('title', [{}])[0].get('plain_text', 'Unknown')}"
+            )
             results_db = self.notion_client.databases.retrieve(database_id=self.results_db_id)
-            self.logger.info(f"✅ Results database found: {results_db.get('title', [{}])[0].get('plain_text', 'Unknown')}")
-            
+            self.logger.info(
+                f"✅ Results database found: {results_db.get('title', [{}])[0].get('plain_text', 'Unknown')}"
+            )
         except Exception as e:
             self.logger.error(f"❌ Database check failed: {str(e)}")
-            raise Exception(f"Database validation failed. Please check NOTION_USERS_DB_ID and NOTION_RESULTS_DB_ID.")
-    
-    def create_email_result(self, email_data: Dict[str, Any], user_email: str) -> Optional[str]:
-        """Create a new email result entry in the shared results database"""
+            raise Exception(
+                "Database validation failed. Please check NOTION_USERS_DB_ID and NOTION_RESULTS_DB_ID."
+            )
+
+    def _load_schemas(self):
+        """Load and cache DB properties for users and results DBs"""
         try:
-            # Prepare the result data for Notion - keeping existing structure + adding User Email
-            result_properties = {
-                "Email Subject": {
-                    "title": [{"text": {"content": email_data.get('subject', 'No Subject')[:100]}}]
-                },
-                "User Email": {
-                    "rich_text": [{"text": {"content": user_email}}]
-                },
-                "Sender": {
-                    "rich_text": [{"text": {"content": email_data.get('sender', 'Unknown')}}]
-                },
-                "Received Date": {
-                    "date": {"start": email_data.get('received_time', '')}
-                },
-                "Language": {
-                    "select": {"name": email_data.get('detected_language', 'English')}
-                },
-                "Priority": {
-                    "select": {"name": email_data.get('priority', 'MEDIUM')}
-                },
-                "Status": {
-                    "select": {"name": "Processed"}
-                },
-                "Processing Date": {
-                    "date": {"start": datetime.utcnow().isoformat()}
-                }
-            }
-            
-            # Add command classification if available
-            if email_data.get('commands'):
-                commands_text = ', '.join(email_data['commands'][:5])  # Limit to 5 commands
-                result_properties["Commands"] = {
-                    "rich_text": [{"text": {"content": commands_text}}]
-                }
-            
-            # Add summary if available
-            if email_data.get('summary'):
-                result_properties["Summary"] = {
-                    "rich_text": [{"text": {"content": email_data['summary'][:1000]}}]  # Limit to 1000 chars
-                }
-            
-            # Add thread ID for reference
-            if email_data.get('thread_id'):
-                result_properties["Thread ID"] = {
-                    "rich_text": [{"text": {"content": email_data['thread_id']}}]
-                }
-            
-            # Create the page in results database
+            users_db = self.notion_client.databases.retrieve(database_id=self.users_db_id)
+            self._users_properties = users_db.get('properties', {}) or {}
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to load users DB schema: {e}")
+            self._users_properties = {}
+        
+        try:
+            results_db = self.notion_client.databases.retrieve(database_id=self.results_db_id)
+            self._results_properties = results_db.get('properties', {}) or {}
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to load results DB schema: {e}")
+            self._results_properties = {}
+
+    def _prop_type(self, db: str, prop: str) -> Optional[str]:
+        props = self._results_properties if db == 'results' else self._users_properties
+        p = props.get(prop)
+        return p.get('type') if isinstance(p, dict) else None
+
+    def _build_prop(self, db: str, prop: str, value: Any) -> Optional[Dict[str, Any]]:
+        ptype = self._prop_type(db, prop)
+        if not ptype:
+            return None
+        if ptype == 'title':
+            return {"title": [{"text": {"content": str(value)}}]}
+        if ptype == 'email':
+            return {"email": str(value) if value else None}
+        if ptype == 'rich_text':
+            return {"rich_text": [{"text": {"content": str(value) if value is not None else ''}}]}
+        if ptype == 'date':
+            return {"date": {"start": str(value) if value else None}}
+        if ptype == 'select':
+            return {"select": {"name": str(value)} if value else None}
+        if ptype == 'multi_select':
+            items: List[str] = []
+            if isinstance(value, list):
+                items = [str(v) for v in value]
+            elif isinstance(value, str):
+                items = [v.strip() for v in value.split(',') if v.strip()]
+            return {"multi_select": [{"name": v} for v in items]}
+        if ptype == 'number':
+            try:
+                return {"number": float(value)}
+            except Exception:
+                return {"number": None}
+        if ptype == 'checkbox':
+            return {"checkbox": bool(value)}
+        return None
+
+    def _sanitize_email(self, value: Optional[str]) -> Optional[str]:
+        try:
+            if not value:
+                return None
+            v = value.strip()
+            # Extract between angle brackets if present
+            if '<' in v and '>' in v:
+                start = v.find('<') + 1
+                end = v.find('>', start)
+                if end > start:
+                    v = v[start:end].strip()
+            m = re.search(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', v)
+            return m.group(0).lower() if m else None
+        except Exception:
+            return None
+
+    # -----------------
+    # Public operations
+    # -----------------
+    def create_email_result(self, email_data: Dict[str, Any], user_email: str) -> Optional[str]:
+        """Create a new email result entry in the shared results database (schema-aware)"""
+        try:
+            self._load_schemas()  # refresh in case schema changed
+
+            props: Dict[str, Any] = {}
+
+            # Common values
+            subject = (email_data.get('subject') or 'No Subject')[:100]
+            sender_raw = email_data.get('sender', '')
+            safe_user_email = self._sanitize_email(user_email) or user_email
+            safe_sender = self._sanitize_email(sender_raw) or sender_raw
+            received_date = email_data.get('received_time', '')
+            language = email_data.get('detected_language', 'English')
+            priority = email_data.get('priority', 'MEDIUM')
+            processed_at = datetime.utcnow().isoformat()
+            summary = (email_data.get('summary') or '')[:1000]
+            thread_id = email_data.get('thread_id')
+            commands_list = email_data.get('detected_commands') or email_data.get('commands') or []
+            team_tags = self._determine_team_tags(commands_list)
+            tone = email_data.get('tone', 'neutral')
+            confidence_score = email_data.get('confidence_score', 0)
+            action_status = self._determine_action_status(email_data)
+            reply1 = email_data.get('reply_draft_1')
+            reply2 = email_data.get('reply_draft_2')
+            processing_status = email_data.get('processing_status', 'Completed')
+
+            # Title
+            if 'Email Subject' in self._results_properties:
+                p = self._build_prop('results', 'Email Subject', subject)
+                if p is not None:
+                    props['Email Subject'] = p
+
+            # User Email
+            if 'User Email' in self._results_properties:
+                p = self._build_prop('results', 'User Email', safe_user_email)
+                if p is not None:
+                    props['User Email'] = p
+
+            # Sender
+            if 'Sender' in self._results_properties:
+                p = self._build_prop('results', 'Sender', safe_sender)
+                if p is not None:
+                    props['Sender'] = p
+
+            # Received Date
+            if 'Received Date' in self._results_properties:
+                p = self._build_prop('results', 'Received Date', received_date)
+                if p is not None:
+                    props['Received Date'] = p
+
+            # Language
+            if 'Language' in self._results_properties:
+                p = self._build_prop('results', 'Language', language)
+                if p is not None:
+                    props['Language'] = p
+
+            # Priority
+            if 'Priority' in self._results_properties:
+                p = self._build_prop('results', 'Priority', priority)
+                if p is not None:
+                    props['Priority'] = p
+
+            # Status (default Processed)
+            if 'Status' in self._results_properties:
+                p = self._build_prop('results', 'Status', 'Processed')
+                if p is not None:
+                    props['Status'] = p
+
+            # Processing Date / fallback to Processed At
+            if 'Processing Date' in self._results_properties:
+                p = self._build_prop('results', 'Processing Date', processed_at)
+                if p is not None:
+                    props['Processing Date'] = p
+            elif 'Processed At' in self._results_properties:
+                p = self._build_prop('results', 'Processed At', processed_at)
+                if p is not None:
+                    props['Processed At'] = p
+
+            # Additional requested fields
+            if 'Tone' in self._results_properties:
+                p = self._build_prop('results', 'Tone', tone)
+                if p is not None:
+                    props['Tone'] = p
+            if 'Team Tags' in self._results_properties:
+                if self._prop_type('results', 'Team Tags') == 'multi_select':
+                    p = self._build_prop('results', 'Team Tags', team_tags)
+                else:
+                    p = self._build_prop('results', 'Team Tags', ', '.join(team_tags))
+                if p is not None:
+                    props['Team Tags'] = p
+            if 'Confidence Score' in self._results_properties:
+                p = self._build_prop('results', 'Confidence Score', confidence_score)
+                if p is not None:
+                    props['Confidence Score'] = p
+            if 'Action Status' in self._results_properties:
+                p = self._build_prop('results', 'Action Status', action_status)
+                if p is not None:
+                    props['Action Status'] = p
+            if 'Reply Draft 1' in self._results_properties and reply1:
+                p = self._build_prop('results', 'Reply Draft 1', str(reply1)[:2000])
+                if p is not None:
+                    props['Reply Draft 1'] = p
+            if 'Reply Draft 2' in self._results_properties and reply2:
+                p = self._build_prop('results', 'Reply Draft 2', str(reply2)[:2000])
+                if p is not None:
+                    props['Reply Draft 2'] = p
+            if 'Processing Status' in self._results_properties:
+                p = self._build_prop('results', 'Processing Status', processing_status)
+                if p is not None:
+                    props['Processing Status'] = p
+
+            # Commands
+            if 'Commands' in self._results_properties:
+                if self._prop_type('results', 'Commands') == 'multi_select':
+                    p = self._build_prop('results', 'Commands', commands_list)
+                else:
+                    commands_text = ', '.join(commands_list[:10])
+                    p = self._build_prop('results', 'Commands', commands_text)
+                if p is not None:
+                    props['Commands'] = p
+
+            # Summary
+            if 'Summary' in self._results_properties and summary:
+                p = self._build_prop('results', 'Summary', summary)
+                if p is not None:
+                    props['Summary'] = p
+
+            # Thread ID
+            if 'Thread ID' in self._results_properties and thread_id:
+                p = self._build_prop('results', 'Thread ID', thread_id)
+                if p is not None:
+                    props['Thread ID'] = p
+
+            if not props:
+                raise Exception("Results DB has no matching properties for the payload; please check schema.")
+
             response = self.notion_client.pages.create(
                 parent={"database_id": self.results_db_id},
-                properties=result_properties
+                properties=props
             )
-            
-            result_id = response['id']
-            self.logger.info(f"✅ Created email result: {email_data.get('subject', 'No Subject')} for {user_email}")
-            
-            return result_id
-            
+            page_id = response['id']
+            self.logger.info(
+                f"✅ Created email result for {safe_user_email}: '{subject}' (page_id={page_id})"
+            )
+            return page_id
+        
         except Exception as e:
-            self.logger.error(f"❌ Failed to create email result: {str(e)}")
+            self.logger.error(
+                "❌ Failed to create email result: %s",
+                str(e)
+            )
             return None
-    
+
     def get_user_results(self, user_email: str, days: int = 30) -> List[Dict[str, Any]]:
-        """Get email results for a specific user"""
+        """Get email results for a specific user (schema-aware filter)"""
         try:
-            # Calculate date filter
+            self._load_schemas()
             past_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-            
+
+            if 'User Email' not in self._results_properties:
+                return []
+
+            ptype = self._prop_type('results', 'User Email')
+            if ptype == 'email':
+                user_filter = {"property": "User Email", "email": {"equals": user_email}}
+            else:
+                user_filter = {"property": "User Email", "rich_text": {"equals": user_email}}
+
+            date_prop = 'Processing Date' if 'Processing Date' in self._results_properties else (
+                'Processed At' if 'Processed At' in self._results_properties else None
+            )
+            if not date_prop:
+                return []
+
             response = self.notion_client.databases.query(
                 database_id=self.results_db_id,
                 filter={
                     "and": [
-                        {
-                            "property": "User Email",
-                            "rich_text": {"equals": user_email}
-                        },
-                        {
-                            "property": "Processing Date",
-                            "date": {"on_or_after": past_date}
-                        }
+                        user_filter,
+                        {"property": date_prop, "date": {"on_or_after": past_date}},
                     ]
                 },
-                sorts=[{"property": "Processing Date", "direction": "descending"}]
+                sorts=[{"property": date_prop, "direction": "descending"}]
             )
             
-            results = []
-            for page in response['results']:
+            results: List[Dict[str, Any]] = []
+            for page in response.get('results', []):
                 result_data = self._parse_result_page(page)
                 if result_data:
                     results.append(result_data)
             
             self.logger.info(f"✅ Retrieved {len(results)} results for {user_email}")
             return results
-            
         except Exception as e:
             self.logger.error(f"❌ Failed to get user results: {str(e)}")
             return []
-    
+
     def get_all_results(self, days: int = 30, limit: int = 100) -> List[Dict[str, Any]]:
         """Get all email results from the shared database"""
         try:
-            # Calculate date filter
+            self._load_schemas()
             past_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-            
+            date_prop = 'Processing Date' if 'Processing Date' in self._results_properties else (
+                'Processed At' if 'Processed At' in self._results_properties else None
+            )
+            if not date_prop:
+                return []
+
             response = self.notion_client.databases.query(
                 database_id=self.results_db_id,
-                filter={
-                    "property": "Processing Date",
-                    "date": {"on_or_after": past_date}
-                },
-                sorts=[{"property": "Processing Date", "direction": "descending"}],
+                filter={"property": date_prop, "date": {"on_or_after": past_date}},
+                sorts=[{"property": date_prop, "direction": "descending"}],
                 page_size=limit
             )
             
-            results = []
-            for page in response['results']:
+            results: List[Dict[str, Any]] = []
+            for page in response.get('results', []):
                 result_data = self._parse_result_page(page)
                 if result_data:
                     results.append(result_data)
-            
             self.logger.info(f"✅ Retrieved {len(results)} total results")
             return results
-            
         except Exception as e:
             self.logger.error(f"❌ Failed to get all results: {str(e)}")
             return []
-    
+
     def update_result_status(self, result_id: str, status: str, notes: str = None) -> bool:
         """Update the status of an email result"""
         try:
-            update_data = {
-                "Status": {"select": {"name": status}}
-            }
-            
-            if notes:
-                update_data["Notes"] = {
-                    "rich_text": [{"text": {"content": notes}}]
-                }
-            
-            self.notion_client.pages.update(
-                page_id=result_id,
-                properties=update_data
-            )
-            
+            update_data = {}
+            if 'Status' in self._results_properties:
+                update_data['Status'] = {"select": {"name": status}}
+            if notes and 'Notes' in self._results_properties:
+                update_data['Notes'] = {"rich_text": [{"text": {"content": notes}}]}
+            if not update_data:
+                return False
+            self.notion_client.pages.update(page_id=result_id, properties=update_data)
             self.logger.info(f"✅ Updated result {result_id} status to {status}")
             return True
-            
         except Exception as e:
             self.logger.error(f"❌ Failed to update result status: {str(e)}")
             return False
-    
-    def get_results_statistics(self, user_email: str = None, days: int = 30) -> Dict[str, Any]:
-        """Get statistics about email processing results"""
-        try:
-            # Calculate date filter
-            past_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-            
-            # Base filter
-            base_filter = {
-                "property": "Processing Date",
-                "date": {"on_or_after": past_date}
-            }
-            
-            # Add user filter if specified
-            if user_email:
-                base_filter = {
-                    "and": [
-                        base_filter,
-                        {
-                            "property": "User Email",
-                            "rich_text": {"equals": user_email}
-                        }
-                    ]
-                }
-            
-            response = self.notion_client.databases.query(
-                database_id=self.results_db_id,
-                filter=base_filter
-            )
-            
-            results = response['results']
-            
-            # Calculate statistics
-            stats = {
-                'total_processed': len(results),
-                'languages': {},
-                'priorities': {},
-                'statuses': {},
-                'commands': {},
-                'users': {}
-            }
-            
-            for page in results:
-                properties = page.get('properties', {})
-                
-                # Language stats
-                language = self._extract_select(properties, 'Language')
-                if language:
-                    stats['languages'][language] = stats['languages'].get(language, 0) + 1
-                
-                # Priority stats
-                priority = self._extract_select(properties, 'Priority')
-                if priority:
-                    stats['priorities'][priority] = stats['priorities'].get(priority, 0) + 1
-                
-                # Status stats
-                status = self._extract_select(properties, 'Status')
-                if status:
-                    stats['statuses'][status] = stats['statuses'].get(status, 0) + 1
-                
-                # User stats
-                user = self._extract_rich_text(properties, 'User Email')
-                if user:
-                    stats['users'][user] = stats['users'].get(user, 0) + 1
-                
-                # Command stats
-                commands_text = self._extract_rich_text(properties, 'Commands')
-                if commands_text:
-                    commands = [cmd.strip() for cmd in commands_text.split(',')]
-                    for cmd in commands:
-                        if cmd:
-                            stats['commands'][cmd] = stats['commands'].get(cmd, 0) + 1
-            
-            self.logger.info(f"✅ Generated statistics for {stats['total_processed']} results")
-            return stats
-            
-        except Exception as e:
-            self.logger.error(f"❌ Failed to generate statistics: {str(e)}")
-            return {}
-    
-    def search_results(self, query: str, user_email: str = None, limit: int = 50) -> List[Dict[str, Any]]:
-        """Search email results by text query"""
-        try:
-            # Use Notion's search functionality
-            search_filter = {
-                "property": "object",
-                "value": "page"
-            }
-            
-            if user_email:
-                search_filter = {
-                    "and": [
-                        search_filter,
-                        {
-                            "property": "User Email",
-                            "rich_text": {"equals": user_email}
-                        }
-                    ]
-                }
-            
-            response = self.notion_client.search(
-                query=query,
-                filter=search_filter,
-                page_size=limit
-            )
-            
-            results = []
-            for page in response['results']:
-                # Only include pages from our results database
-                if page.get('parent', {}).get('database_id') == self.results_db_id:
-                    result_data = self._parse_result_page(page)
-                    if result_data:
-                        results.append(result_data)
-            
-            self.logger.info(f"✅ Search returned {len(results)} results for query: {query}")
-            return results
-            
-        except Exception as e:
-            self.logger.error(f"❌ Search failed: {str(e)}")
-            return []
-    
+
+    # -----------------
+    # Business helpers
+    # -----------------
+    def _determine_team_tags(self, commands: List[str]) -> List[str]:
+        mapping = {
+            'Sales': ['schedule_demo', 'send_proposal', 'custom_plan_request', 'partnership_request', 'confirm_availability', 'renew_contract'],
+            'Support': ['technical_issue', 'bug_report', 'access_request', 'reset_password', 'security_alert', 'system_down', 'general_question'],
+            'HR': ['job_application', 'referral_submission', 'interview_schedule_request', 'cv_update_request', 'hr_query', 'employee_onboarding'],
+            'Finance': ['billing_question', 'send_invoice', 'pricing_request', 'account_closure', 'budget_request'],
+            'Legal': ['legal_inquiry', 'contract_request', 'privacy_policy_question', 'data_deletion_request', 'compliance_audit', 'gdpr_request'],
+            'Operations': ['shipping_issue', 'delivery_update_request', 'return_request', 'inventory_request', 'resource_allocation'],
+            'Marketing': ['unsubscribe', 'event_registration', 'press_inquiry', 'marketing_collaboration', 'content_request'],
+        }
+        assigned = set()
+        for team, cmds in mapping.items():
+            if any(c in (commands or []) for c in cmds):
+                assigned.add(team)
+        return list(assigned) if assigned else ['General']
+
+    def _determine_action_status(self, email_data: Dict[str, Any]) -> str:
+        reply = (email_data.get('reply_draft_1') or '') + (email_data.get('reply_draft_2') or '')
+        commands = email_data.get('detected_commands') or []
+        confidence = email_data.get('confidence_score', 0)
+        text = reply.upper()
+        if '[SKIPPED' in text or 'no_action' in commands:
+            return 'Skipped'
+        if 'ERROR' in text:
+            return 'Error'
+        if 'requires_human_review' in commands or confidence < 40:
+            return 'Needs Review'
+        if confidence >= 80:
+            return 'Ready to Send'
+        return 'Draft Generated'
+
+    # --------------
+    # Parse helpers
+    # --------------
     def _parse_result_page(self, page: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Parse Notion result page into result data dictionary"""
         try:
             properties = page.get('properties', {})
-            
-            # Extract basic properties
-            result_data = {
+            data = {
                 'result_id': page['id'],
                 'subject': self._extract_title(properties, 'Email Subject'),
-                'user_email': self._extract_rich_text(properties, 'User Email'),
-                'sender': self._extract_rich_text(properties, 'Sender'),
+                'user_email': self._extract_email_or_text(properties, 'User Email'),
+                'sender': self._extract_email_or_text(properties, 'Sender'),
                 'received_date': self._extract_date(properties, 'Received Date'),
                 'language': self._extract_select(properties, 'Language'),
                 'priority': self._extract_select(properties, 'Priority'),
                 'status': self._extract_select(properties, 'Status'),
-                'processing_date': self._extract_date(properties, 'Processing Date'),
+                'processing_date': self._extract_date(properties, 'Processing Date') or self._extract_date(properties, 'Processed At'),
                 'commands': self._extract_rich_text(properties, 'Commands'),
                 'summary': self._extract_rich_text(properties, 'Summary'),
                 'thread_id': self._extract_rich_text(properties, 'Thread ID'),
-                'notes': self._extract_rich_text(properties, 'Notes')
+                'notes': self._extract_rich_text(properties, 'Notes'),
             }
-            
-            return result_data
-            
+            return data
         except Exception as e:
             self.logger.error(f"❌ Failed to parse result page: {str(e)}")
             return None
-    
-    def _extract_title(self, properties: Dict[str, Any], property_name: str) -> str:
-        """Extract title content from Notion property"""
-        prop = properties.get(property_name, {}).get('title', [])
-        return prop[0].get('plain_text', '') if prop else ''
-    
-    def _extract_rich_text(self, properties: Dict[str, Any], property_name: str) -> str:
-        """Extract rich text content from Notion property"""
-        prop = properties.get(property_name, {}).get('rich_text', [])
-        return prop[0].get('plain_text', '') if prop else ''
-    
-    def _extract_date(self, properties: Dict[str, Any], property_name: str) -> str:
-        """Extract date from Notion property"""
-        prop = properties.get(property_name, {}).get('date', {})
-        return prop.get('start', '') if prop else ''
-    
-    def _extract_select(self, properties: Dict[str, Any], property_name: str) -> str:
-        """Extract select value from Notion property"""
-        prop = properties.get(property_name, {}).get('select', {})
-        return prop.get('name', '') if prop else ''
-    
+
+    def _extract_title(self, properties: Dict[str, Any], prop: str) -> str:
+        arr = properties.get(prop, {}).get('title', [])
+        return arr[0].get('plain_text', '') if arr else ''
+
+    def _extract_rich_text(self, properties: Dict[str, Any], prop: str) -> str:
+        arr = properties.get(prop, {}).get('rich_text', [])
+        return arr[0].get('plain_text', '') if arr else ''
+
+    def _extract_date(self, properties: Dict[str, Any], prop: str) -> str:
+        d = properties.get(prop, {}).get('date', {})
+        return d.get('start', '') if d else ''
+
+    def _extract_select(self, properties: Dict[str, Any], prop: str) -> str:
+        s = properties.get(prop, {}).get('select', {})
+        return s.get('name', '') if s else ''
+
+    def _extract_email_or_text(self, properties: Dict[str, Any], prop: str) -> str:
+        ptype = self._prop_type('results', prop)
+        if ptype == 'email':
+            return properties.get(prop, {}).get('email', '')
+        if ptype == 'title':
+            return self._extract_title(properties, prop)
+        return self._extract_rich_text(properties, prop)
+
     def cleanup_old_results(self, days: int = 90) -> int:
         """Clean up old results (archived status)"""
         try:
-            cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-            
-            # Find old results
+            past = (datetime.utcnow() - timedelta(days=days)).isoformat()
+            date_prop = 'Processing Date' if 'Processing Date' in self._results_properties else (
+                'Processed At' if 'Processed At' in self._results_properties else None
+            )
+            if not date_prop:
+                return 0
             response = self.notion_client.databases.query(
                 database_id=self.results_db_id,
                 filter={
                     "and": [
-                        {
-                            "property": "Processing Date",
-                            "date": {"before": cutoff_date}
-                        },
-                        {
-                            "property": "Status",
-                            "select": {"equals": "Processed"}
-                        }
+                        {"property": date_prop, "date": {"before": past}},
+                        {"property": "Status", "select": {"equals": "Processed"}} if 'Status' in self._results_properties else {"property": date_prop, "date": {"before": past}}
                     ]
                 }
             )
-            
-            old_results = response['results']
+            old_results = response.get('results', [])
             archived_count = 0
-            
             for result in old_results:
                 try:
-                    # Archive old results
-                    self.notion_client.pages.update(
-                        page_id=result['id'],
-                        properties={
-                            "Status": {"select": {"name": "Archived"}}
-                        }
-                    )
-                    archived_count += 1
+                    if 'Status' in self._results_properties:
+                        self.notion_client.pages.update(
+                            page_id=result['id'],
+                            properties={"Status": {"select": {"name": "Archived"}}}
+                        )
+                        archived_count += 1
                 except Exception as e:
                     self.logger.warning(f"⚠️ Failed to archive result {result['id']}: {str(e)}")
                     continue
-            
             self.logger.info(f"✅ Archived {archived_count} old results")
             return archived_count
-            
         except Exception as e:
             self.logger.error(f"❌ Cleanup failed: {str(e)}")
             return 0
