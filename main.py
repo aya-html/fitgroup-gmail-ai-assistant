@@ -244,76 +244,10 @@ def gmail_assistant_page():
 
 @app.route('/', methods=['GET'])
 def home():
-    """Home page with API documentation"""
-    html_template = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>FIT Group - Gmail Assistant API</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-            .header { background: #2c3e50; color: white; padding: 20px; border-radius: 5px; }
-            .endpoint { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; }
-            .method { display: inline-block; padding: 4px 8px; border-radius: 3px; font-weight: bold; }
-            .get { background: #28a745; color: white; }
-            .post { background: #007bff; color: white; }
-            code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>🚀 FIT Group - Multilingual Gmail Assistant API</h1>
-            <p>Advanced AI-powered email processing system with GPT-4 integration</p>
-            <p><strong>Status:</strong> {{ status }} | <strong>Version:</strong> 2.0.0 | <strong>Time:</strong> {{ timestamp }}</p>
-        </div>
-        
-        <h2>📡 Available Endpoints</h2>
-        
-        <div class="endpoint">
-            <span class="method get">GET</span> <code>/api/health</code>
-            <p>System health check and service status</p>
-        </div>
-        
-        <div class="endpoint">
-            <span class="method get">GET</span> <code>/api/stats</code>
-            <p>Processing statistics and system information</p>
-        </div>
-        
-        <div class="endpoint">
-            <span class="method post">POST</span> <code>/api/process-emails</code>
-            <p>Process recent emails with AI analysis</p>
-            <p><strong>Parameters:</strong> <code>days</code> (optional, default: 7), <code>max_results</code> (optional, default: 50)</p>
-        </div>
-        
-        <div class="endpoint">
-            <span class="method post">POST</span> <code>/api/process-batch</code>
-            <p>Advanced batch processing with detailed analytics</p>
-            <p><strong>Parameters:</strong> <code>days</code>, <code>max_results</code>, <code>sync_notion</code></p>
-        </div>
-        
-        <h2>🔧 Features</h2>
-        <ul>
-            <li>✅ Multilingual email processing (English, Spanish, French, German, etc.)</li>
-            <li>✅ Advanced GPT-4 powered analysis and classification</li>
-            <li>✅ 50+ business command categories</li>
-            <li>✅ Dual-tone reply generation (Professional & Friendly)</li>
-            <li>✅ Confidence scoring and tone analysis</li>
-            <li>✅ Notion database integration</li>
-            <li>✅ Team routing and priority detection</li>
-            <li>✅ Real-time processing analytics</li>
-        </ul>
-        
-        <h2>📊 Team Departments</h2>
-        <p><strong>Supported:</strong> Sales, Support, HR, Finance, Legal, Operations, Marketing, General</p>
-        
-        <p><em>Powered by OpenAI GPT-4 & Google Cloud • Built for FIT Group</em></p>
-    </body>
-    </html>
-    """
-    
-    return render_template_string(html_template, 
-                                 status="🟢 Online" if (auth_manager and user_manager and notion_manager and os.environ.get('OPENAI_API_KEY') and os.environ.get('GOOGLE_CLIENT_SECRET_JSON')) else "🔴 Offline",
-                                 timestamp=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'))
+    """Root redirect based on authentication state"""
+    if auth_manager and auth_manager.is_authenticated():
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login_page'))
 
 
 @app.route('/api/health', methods=['GET'])
