@@ -878,10 +878,10 @@
                     </select>
                 </div>
                 <div class="control">
-                    <label for="dt-filter-labels">Labels</label>
-                    <select id="dt-filter-labels" multiple>
-                        <option value="INBOX" selected>INBOX</option>
-                    </select>
+                    <label>Labels</label>
+                    <div id="dt-filter-labels" style="max-height:140px; overflow:auto; border:1px solid var(--border-color); border-radius:10px; padding:8px; background: var(--bg-secondary);">
+                        <!-- checkboxes will be injected here -->
+                    </div>
                 </div>
                 <div class="control">
                     <label for="dt-filter-date">Date Range</label>
@@ -1314,12 +1314,12 @@
             perPage: 25,
             sortKey: 'date',
             sortDir: 'desc',
-            filters: { user: 'current', labels: ['INBOX'], datePreset: '7d', from: null, to: null, search: '' }
+            filters: { user: 'current', labels: new Set(['INBOX']), datePreset: '7d', from: null, to: null, search: '' }
         };
 
         function dtInitControls() {
             const userSel = document.getElementById('dt-filter-user');
-            const labelsSel = document.getElementById('dt-filter-labels');
+            const labelsWrap = document.getElementById('dt-filter-labels');
             const dateSel = document.getElementById('dt-filter-date');
             const customWrap = document.getElementById('dt-custom-date-wrap');
             const fromInput = document.getElementById('dt-date-from');
@@ -1353,7 +1353,10 @@
                 dtState.filters.user = userSel.value;
                 dtFetchAndRender();
             });
-            labelsSel.addEventListener('change', () => { dtState.filters.labels = Array.from(labelsSel.selectedOptions).map(o=>o.value); dtState.page = 1; dtApplyFiltersAndRender(); });
+            // Fetch labels from Notion and render as checkboxes on load
+            dtLoadLabelsCheckboxes(labelsWrap).then(() => {
+                dtWireLabelCheckboxes(labelsWrap);
+            });
             dateSel.addEventListener('change', () => {
                 dtState.filters.datePreset = dateSel.value;
                 if (customWrap) {
@@ -1378,6 +1381,40 @@
                     else { dtState.sortKey = key; dtState.sortDir = 'desc'; }
                     dtApplyFiltersAndRender();
                 });
+            });
+        }
+
+        // Load labels list and render as checkboxes
+        async function dtLoadLabelsCheckboxes(container){
+            if (!container) return;
+            container.innerHTML = '<span style="color: var(--text-secondary)"><i class="fas fa-spinner fa-spin"></i> Loading labels...</span>';
+            try{
+                const res = await fetch(`${API_BASE_URL}/api/user/labels?days=60`, { credentials: 'include' });
+                console.log('res:\n', res);
+                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const labels = Array.isArray(data.labels) ? data.labels : [];
+                const uniq = new Set(['INBOX', ...labels]);
+                container.innerHTML = Array.from(uniq).sort().map(l=>{
+                    const checked = dtState.filters.labels.has(l) ? 'checked' : '';
+                    return `<label style=\"display:flex; align-items:center; gap:8px; margin:4px 0;\">\n                        <input type=\"checkbox\" value=\"${l}\" ${checked}/>\n                        <span>${dtEscape(l)}</span>\n                    </label>`;
+                }).join('');
+            }catch(e){
+                console.log('label loading error:\n', e);
+                
+                container.innerHTML = '<span style="color:#EE5D50">Failed to load labels</span>';
+            }
+        }
+        function dtWireLabelCheckboxes(container){
+            if (!container) return;
+            container.addEventListener('change', (e)=>{
+                const t = e.target;
+                if (t && t.type === 'checkbox'){
+                    if (t.checked) dtState.filters.labels.add(t.value); else dtState.filters.labels.delete(t.value);
+                    dtState.page = 1;
+                    dtApplyFiltersAndRender();
+                }
             });
         }
 
@@ -1418,16 +1455,14 @@
         }
 
         function dtBuildLabelsFromData(){
-            const labelsSel = document.getElementById('dt-filter-labels');
-            const set = new Set(['INBOX']);
+            const set = new Set([...dtState.filters.labels]);
             dtState.data.forEach(item => { dtNormalizeLabels(item).forEach(l => set.add(l)); });
-            labelsSel.innerHTML = Array.from(set).sort().map(l=>`<option value="${l}" ${l==='INBOX'?'selected':''}>${l}</option>`).join('');
-            dtState.filters.labels = Array.from(labelsSel.selectedOptions).map(o=>o.value);
+            dtState.filters.labels = set;
         }
 
         function dtApplyFiltersAndRender(){
             const q = dtState.filters.search;
-            const activeLabels = new Set(dtState.filters.labels);
+            const activeLabels = dtState.filters.labels;
             dtState.filtered = dtState.data.filter(item => {
                 const subj = (item.subject || '').toLowerCase();
                 const from = (item.from || item.sender || '').toLowerCase();

@@ -531,3 +531,60 @@ class NotionManager:
         except Exception as e:
             self.logger.error(f"❌ Cleanup failed: {str(e)}")
             return 0
+
+    def get_unique_labels(self, user_email: Optional[str] = None, days: int = 30) -> List[str]:
+        """Collect all unique labels from the Results DB 'Labels' multi_select.
+        Optionally filters by user_email and a time window (days)."""
+        try:
+            self._load_schemas()
+            # Ensure Labels property exists and is multi_select
+            if 'Labels' not in self._results_properties or self._prop_type('results', 'Labels') != 'multi_select':
+                return []
+
+            past_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+            date_prop = 'Processing Date' if 'Processing Date' in self._results_properties else (
+                'Processed At' if 'Processed At' in self._results_properties else None
+            )
+            if not date_prop:
+                return []
+
+            # Build filter
+            filters: List[Dict[str, Any]] = [
+                {"property": date_prop, "date": {"on_or_after": past_date}}
+            ]
+            if user_email and 'User Email' in self._results_properties:
+                ptype = self._prop_type('results', 'User Email')
+                if ptype == 'email':
+                    user_filter = {"property": "User Email", "email": {"equals": user_email}}
+                else:
+                    user_filter = {"property": "User Email", "rich_text": {"equals": user_email}}
+                filters.insert(0, user_filter)
+
+            # Query with pagination to gather all labels
+            labels_set: set[str] = set()
+            start_cursor: Optional[str] = None
+            while True:
+                query_args: Dict[str, Any] = {
+                    'database_id': self.results_db_id,
+                    'filter': {"and": filters},
+                    'page_size': 100
+                }
+                if start_cursor:
+                    query_args['start_cursor'] = start_cursor
+                response = self.notion_client.databases.query(**query_args)
+                for page in response.get('results', []):
+                    props = page.get('properties', {})
+                    if 'Labels' in props and props['Labels'].get('type') == 'multi_select':
+                        for opt in props['Labels'].get('multi_select', []):
+                            name = opt.get('name')
+                            if name:
+                                labels_set.add(name)
+                if response.get('has_more'):
+                    start_cursor = response.get('next_cursor')
+                else:
+                    break
+
+            return sorted(labels_set)
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get unique labels: {str(e)}")
+            return []

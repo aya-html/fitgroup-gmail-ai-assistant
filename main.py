@@ -588,6 +588,25 @@ def get_user_results():
         logger.error(f"❌ Failed to get user results: {str(e)}")
         return jsonify({'error': 'Failed to retrieve results'}), 500
 
+@app.route('/api/user/labels', methods=['GET'])
+def get_user_labels():
+    """Get unique Gmail labels from Notion results for current user"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    if not notion_manager:
+        return jsonify({'error': 'Results database not configured'}), 503
+    current_user = auth_manager.get_current_user()
+    if not current_user:
+        return jsonify({'error': 'User not found'}), 404
+
+    days = request.args.get('days', 60, type=int)
+    try:
+        labels = notion_manager.get_unique_labels(current_user['email'], days)
+        return jsonify({'labels': labels, 'total_count': len(labels)})
+    except Exception as e:
+        logger.error(f"❌ Failed to get user labels: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve labels'}), 500
+
 @app.route('/api/admin/users', methods=['GET'])
 def get_all_users():
     """Get all users (admin only)"""
