@@ -666,7 +666,8 @@
                 if (t && t.type === 'checkbox'){
                     if (t.checked) dtState.filters.labels.add(t.value); else dtState.filters.labels.delete(t.value);
                     dtState.page = 1;
-                    dtApplyFiltersAndRender();
+                    // Re-fetch so backend AND label filtering applies
+                    dtFetchAndRender();
                 }
             });
         }
@@ -708,7 +709,6 @@
                 const data = await res.json();
                 dtState.data = Array.isArray(data.results) ? data.results : [];
                 dtState.page = 1;
-                dtBuildLabelsFromData();
                 dtApplyFiltersAndRender();
                 if (dtState.data.length === 0) {
                     const tbody = document.getElementById('dt-tbody');
@@ -721,12 +721,6 @@
             }
         }
 
-        function dtBuildLabelsFromData(){
-            const set = new Set([...dtState.filters.labels]);
-            dtState.data.forEach(item => { dtNormalizeLabels(item).forEach(l => set.add(l)); });
-            dtState.filters.labels = set;
-        }
-
         function dtApplyFiltersAndRender(){
             const q = dtState.filters.search;
             const activeLabels = dtState.filters.labels;
@@ -736,7 +730,7 @@
                 const summary = (item.summary || item.ai_summary || '').toLowerCase();
                 const matchesSearch = !q || subj.includes(q) || from.includes(q) || summary.includes(q);
                 const labels = dtNormalizeLabels(item);
-                const matchesLabels = activeLabels.size === 0 || labels.some(l => activeLabels.has(l));
+                const matchesLabels = activeLabels.size === 0 || Array.from(activeLabels).every(sel => labels.includes(sel));
                 return matchesSearch && matchesLabels;
             });
             const key = dtState.sortKey; const dir = dtState.sortDir === 'asc' ? 1 : -1;
