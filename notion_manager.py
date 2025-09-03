@@ -561,7 +561,7 @@ class NotionManager:
     def _parse_result_page(self, page: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
             properties = page.get('properties', {})
-            data = {
+            data: Dict[str, Any] = {
                 'result_id': page['id'],
                 'subject': self._extract_title(properties, 'Email Subject'),
                 'user_email': self._extract_email_or_text(properties, 'User Email'),
@@ -571,11 +571,31 @@ class NotionManager:
                 'priority': self._extract_select(properties, 'Priority'),
                 'status': self._extract_select(properties, 'Status'),
                 'processing_date': self._extract_date(properties, 'Processing Date') or self._extract_date(properties, 'Processed At'),
-                'commands': self._extract_rich_text(properties, 'Commands'),
                 'summary': self._extract_rich_text(properties, 'Summary'),
                 'thread_id': self._extract_rich_text(properties, 'Thread ID'),
                 'notes': self._extract_rich_text(properties, 'Notes'),
             }
+            # Commands: support rich_text or multi_select
+            if 'Commands' in properties:
+                p = properties['Commands']
+                ptype = p.get('type')
+                if ptype == 'multi_select':
+                    data['detected_commands'] = [it.get('name', '') for it in p.get('multi_select', []) if it.get('name')]
+                else:
+                    data['detected_commands'] = self._extract_rich_text(properties, 'Commands')
+            # Team Tags: support multi_select or rich_text
+            if 'Team Tags' in properties:
+                p = properties['Team Tags']
+                ptype = p.get('type')
+                if ptype == 'multi_select':
+                    team_tags_list = [it.get('name', '') for it in p.get('multi_select', []) if it.get('name')]
+                    data['team_tag'] = ', '.join(team_tags_list) if team_tags_list else ''
+                else:
+                    data['team_tag'] = self._extract_rich_text(properties, 'Team Tags')
+            # Action Status: select or rich_text
+            if 'Action Status' in properties:
+                name = self._extract_select(properties, 'Action Status')
+                data['action_status'] = name or self._extract_rich_text(properties, 'Action Status')
             # Extract Labels multi-select if present
             if 'Labels' in properties and properties['Labels'].get('type') == 'multi_select':
                 data['labels'] = [it.get('name', '') for it in properties['Labels'].get('multi_select', []) if it.get('name')]
