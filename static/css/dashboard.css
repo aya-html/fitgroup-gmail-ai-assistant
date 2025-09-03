@@ -803,7 +803,7 @@ body {
 .results-table th:nth-child(2), .results-table td:nth-child(2) { width: 200px; } /* From */
 .results-table th:nth-child(3), .results-table td:nth-child(3) { width: 300px; } /* Subject */
 .results-table th:nth-child(4), .results-table td:nth-child(4) { width: 350px; } /* Summary */
-.results-table th:nth-child(5), .results-table td:nth-child(5) { width: 200px; } /* Detected Commands */
+.results-table th:nth-child(5), .results-table td:nth-child(5) { width: 200px; white-space: wrap; } /* Detected Commands */
 .results-table th:nth-child(6), .results-table td:nth-child(6) { width: 120px; } /* Team Tag */
 .results-table th:nth-child(7), .results-table td:nth-child(7) { width: 120px; } /* Action Taken */
 .results-table th:nth-child(8), .results-table td:nth-child(8) { width: 150px; } /* Labels */
