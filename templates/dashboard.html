@@ -804,7 +804,15 @@
                 return String(v||'');
             }
         }
-        function dtFormatFrom(item){ if (item.from) return item.from; const name=item.from_name||item.sender_name||''; const email=item.from_email||item.sender_email||''; return (name||email)?`${name?name+' ':''}${email?'<' + email + '>':''}`:''; }
+        function dtFormatFrom(item){
+            if (item.sender) return item.sender;
+            if (item.from) return item.from;
+            const name = item.from_name || item.sender_name || '';
+            const email = item.from_email || item.sender_email || '';
+            if (!name && !email) return '';
+            const emailPart = email ? `<${email}>` : '';
+            return name ? `${name} ${emailPart}`.trim() : emailPart;
+        }
         function dtBuildGmailUrl(item){ const threadId=item.thread_id||item.gmail_thread_id||item.threadId||''; if (threadId) return `https://mail.google.com/mail/u/0/#inbox/${threadId}`; const messageId=item.message_id||item.gmail_message_id||''; if (messageId) return `https://mail.google.com/mail/u/0/#all/${messageId}`; return 'https://mail.google.com/mail/u/0/#inbox'; }
         function dtEscape(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
