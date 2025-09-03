@@ -409,9 +409,11 @@ class NotionManager:
         try:
             self._load_schemas()
 
-            # Determine date property
-            date_prop = 'Processing Date' if 'Processing Date' in self._results_properties else (
-                'Processed At' if 'Processed At' in self._results_properties else None
+            # Determine date property (prefer Received Date for Results panel)
+            date_prop = 'Received Date' if 'Received Date' in self._results_properties else (
+                'Processing Date' if 'Processing Date' in self._results_properties else (
+                    'Processed At' if 'Processed At' in self._results_properties else None
+                )
             )
             if not date_prop:
                 return []
@@ -438,7 +440,6 @@ class NotionManager:
             else:
                 if date_from:
                     sd = str(date_from)
-                    # normalize to start of day when only a date provided
                     start_date = sd if 'T' in sd else f"{sd}T00:00:00"
                 if date_to:
                     try:
@@ -446,7 +447,6 @@ class NotionManager:
                         end_date = (dt_to + timedelta(days=1)).isoformat()
                         end_exclusive = True
                     except Exception:
-                        # fallback (keep as provided)
                         ed = str(date_to)
                         end_date = ed if 'T' in ed else f"{ed}T23:59:59"
                         end_exclusive = False
@@ -483,10 +483,7 @@ class NotionManager:
                     else:
                         text_filters.append({"property": 'Sender', "rich_text": {"contains": text}})
                 if text_filters:
-                    if len(text_filters) == 1:
-                        filters_and.append(text_filters[0])
-                    else:
-                        filters_and.append({"or": text_filters})
+                    filters_and.append({"or": text_filters} if len(text_filters) > 1 else text_filters[0])
 
             # Paginate and aggregate up to limit
             results: List[Dict[str, Any]] = []
