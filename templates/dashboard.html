@@ -9,8 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" rel="stylesheet">
     <link href="/static/css/dashboard.css" rel="stylesheet">
-    </style>
-        </head>
+</head>
 <body>
     <div class="container">
         <!-- Header -->
@@ -645,7 +644,6 @@
             container.innerHTML = '<span style="color: var(--text-secondary)"><i class="fas fa-spinner fa-spin"></i> Loading labels...</span>';
             try{
                 const res = await fetch(`${API_BASE_URL}/api/user/labels?days=60`, { credentials: 'include' });
-                console.log('res:\n', res);
                 
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
@@ -688,10 +686,24 @@
         }
 
         async function dtFetchAndRender() {
+            // Initial fetch honoring default filters (user, labels=INBOX, date preset, search)
             dtSetLoading(true);
             try {
-                const days = dtComputeDays();
-                const res = await fetch(`${API_BASE_URL}/api/user/results?days=${days}&limit=250`);
+                const payload = {
+                    user: dtState.filters.user,
+                    labels: Array.from(dtState.filters.labels || []),
+                    date_preset: dtState.filters.datePreset,
+                    from: dtState.filters.from || null,
+                    to: dtState.filters.to || null,
+                    search: (dtState.filters.search || '').trim(),
+                    limit: 250
+                };
+                const res = await fetch(`${API_BASE_URL}/api/user/results/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 dtState.data = Array.isArray(data.results) ? data.results : [];
@@ -700,7 +712,7 @@
                 dtApplyFiltersAndRender();
                 if (dtState.data.length === 0) {
                     const tbody = document.getElementById('dt-tbody');
-                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color: var(--text-secondary); padding: 24px;">No results yet. Adjust filters or click Process.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color: var(--text-secondary); padding: 24px;">No results yet. Adjust filters or click Search.</td></tr>`;
                 }
             } catch (e) {
                 dtShowToast(`Failed to load results: ${e.message}`, 'error');
@@ -790,15 +802,34 @@
         function dtEscape(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
         async function dtProcessForContext(){
+            // Perform a Notion search using current filters and render results
             try {
                 dtSetLoading(true);
-                const days = dtComputeDays();
-                const res = await fetch(`${API_BASE_URL}/api/process-emails`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ days, max_results: 50 }) });
+                const payload = {
+                    user: dtState.filters.user,
+                    labels: Array.from(dtState.filters.labels || []),
+                    date_preset: dtState.filters.datePreset,
+                    from: dtState.filters.from || null,
+                    to: dtState.filters.to || null,
+                    search: (dtState.filters.search || '').trim(),
+                    limit: 500
+                };
+                const res = await fetch(`${API_BASE_URL}/api/user/results/search`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                dtShowToast('Processing started for current context', 'success');
-                await dtFetchAndRender();
+                const data = await res.json();
+                const results = Array.isArray(data.results) ? data.results : [];
+                dtState.data = results;
+                dtState.page = 1;
+                // Apply any client-side refinements (kept for safety)
+                dtApplyFiltersAndRender();
+                dtShowToast(`Found ${results.length} matching rows`, 'success');
             } catch (e) {
-                dtShowToast('Process failed: '+e.message, 'error');
+                dtShowToast('Search failed: '+e.message, 'error');
             } finally { dtSetLoading(false); }
         }
 

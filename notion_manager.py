@@ -391,6 +391,121 @@ class NotionManager:
             self.logger.error(f"❌ Failed to get all results: {str(e)}")
             return []
 
+    def search_results(
+        self,
+        user_email: str,
+        labels: Optional[List[str]] = None,
+        date_preset: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        text: Optional[str] = None,
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
+        """Query results DB by filters: user, labels, date range/preset, text. Returns matching rows.
+        - labels: OR across provided labels (contains)
+        - text: OR across Subject/Summary/Sender (contains)
+        - date: if preset in {24h,7d,30d} use that; else use provided from/to
+        """
+        try:
+            self._load_schemas()
+
+            # Determine date property
+            date_prop = 'Processing Date' if 'Processing Date' in self._results_properties else (
+                'Processed At' if 'Processed At' in self._results_properties else None
+            )
+            if not date_prop:
+                return []
+
+            # Build user filter
+            filters_and: List[Dict[str, Any]] = []
+            if 'User Email' in self._results_properties:
+                ptype = self._prop_type('results', 'User Email')
+                if ptype == 'email':
+                    filters_and.append({"property": "User Email", "email": {"equals": user_email}})
+                else:
+                    filters_and.append({"property": "User Email", "rich_text": {"equals": user_email}})
+
+            # Date filter
+            start_date: Optional[str] = None
+            end_date: Optional[str] = None
+            preset = (date_preset or '').lower()
+            if preset in ('24h', '7d', '30d'):
+                days = 1 if preset == '24h' else (7 if preset == '7d' else 30)
+                start_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+            else:
+                if date_from:
+                    start_date = date_from
+                if date_to:
+                    end_date = date_to
+            if start_date and end_date:
+                filters_and.append({"property": date_prop, "date": {"on_or_after": start_date}})
+                filters_and.append({"property": date_prop, "date": {"on_or_before": end_date}})
+            else:
+                filters_and.append({"property": date_prop, "date": {"on_or_after": start_date or (datetime.utcnow() - timedelta(days=30)).isoformat()}})
+
+            # Labels OR filter
+            labels = labels or []
+            if labels and 'Labels' in self._results_properties and self._prop_type('results', 'Labels') == 'multi_select':
+                label_filters = [{"property": 'Labels', "multi_select": {"contains": l}} for l in labels]
+                if len(label_filters) == 1:
+                    filters_and.append(label_filters[0])
+                else:
+                    filters_and.append({"or": label_filters})
+
+            # Text OR filter across known textual fields
+            text = (text or '').strip()
+            if text:
+                text_filters: List[Dict[str, Any]] = []
+                if 'Email Subject' in self._results_properties:
+                    text_filters.append({"property": 'Email Subject', "title": {"contains": text}})
+                if 'Summary' in self._results_properties:
+                    text_filters.append({"property": 'Summary', "rich_text": {"contains": text}})
+                if 'Sender' in self._results_properties:
+                    ptype_sender = self._prop_type('results', 'Sender')
+                    if ptype_sender == 'email':
+                        text_filters.append({"property": 'Sender', "email": {"contains": text}})
+                    else:
+                        text_filters.append({"property": 'Sender', "rich_text": {"contains": text}})
+                if text_filters:
+                    if len(text_filters) == 1:
+                        filters_and.append(text_filters[0])
+                    else:
+                        filters_and.append({"or": text_filters})
+
+            # Paginate and aggregate up to limit
+            results: List[Dict[str, Any]] = []
+            start_cursor: Optional[str] = None
+            while True:
+                page_size = 100 if limit > 100 else limit
+                if page_size <= 0:
+                    break
+                query_args: Dict[str, Any] = {
+                    'database_id': self.results_db_id,
+                    'filter': {"and": filters_and},
+                    'sorts': [{"property": date_prop, "direction": "descending"}],
+                    'page_size': page_size
+                }
+                if start_cursor:
+                    query_args['start_cursor'] = start_cursor
+                response = self.notion_client.databases.query(**query_args)
+                for page in response.get('results', []):
+                    parsed = self._parse_result_page(page)
+                    if parsed:
+                        results.append(parsed)
+                        if len(results) >= limit:
+                            break
+                if len(results) >= limit:
+                    break
+                if response.get('has_more'):
+                    start_cursor = response.get('next_cursor')
+                else:
+                    break
+
+            return results
+        except Exception as e:
+            self.logger.error(f"❌ Failed to search results: {str(e)}")
+            return []
+
     def update_result_status(self, result_id: str, status: str, notes: str = None) -> bool:
         """Update the status of an email result"""
         try:

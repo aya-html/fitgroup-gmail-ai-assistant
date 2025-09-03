@@ -607,6 +607,44 @@ def get_user_labels():
         logger.error(f"❌ Failed to get user labels: {str(e)}")
         return jsonify({'error': 'Failed to retrieve labels'}), 500
 
+@app.route('/api/user/results/search', methods=['POST'])
+def search_user_results():
+    """Search Notion results DB using panel filters"""
+    if not auth_manager or not auth_manager.is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    if not notion_manager:
+        return jsonify({'error': 'Results database not configured'}), 503
+    current_user = auth_manager.get_current_user()
+    if not current_user:
+        return jsonify({'error': 'User not found'}), 404
+
+    try:
+        data = request.get_json() or {}
+        user = data.get('user') or 'current'
+        labels = data.get('labels') or []
+        date_preset = data.get('date_preset')
+        date_from = data.get('from')
+        date_to = data.get('to')
+        text = data.get('search')
+        limit = int(data.get('limit') or 500)
+
+        user_email = current_user['email'] if user == 'current' else (user if user != 'all' else current_user['email'])
+        # For now, non-admin 'all' maps to current user's results; extend with admin logic if needed
+
+        results = notion_manager.search_results(
+            user_email=user_email,
+            labels=labels,
+            date_preset=date_preset,
+            date_from=date_from,
+            date_to=date_to,
+            text=text,
+            limit=limit
+        )
+        return jsonify({ 'results': results, 'count': len(results) })
+    except Exception as e:
+        logger.error(f"❌ Search failed: {str(e)}")
+        return jsonify({'error': 'Search failed'}), 500
+
 @app.route('/api/admin/users', methods=['GET'])
 def get_all_users():
     """Get all users (admin only)"""
