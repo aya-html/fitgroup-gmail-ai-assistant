@@ -425,23 +425,41 @@ class NotionManager:
                 else:
                     filters_and.append({"property": "User Email", "rich_text": {"equals": user_email}})
 
-            # Date filter
+            # Date filter (supports presets and custom range). For custom:
+            # - from: inclusive at start of day
+            # - to: inclusive end of day (implemented via before next-day 00:00)
             start_date: Optional[str] = None
             end_date: Optional[str] = None
+            end_exclusive = False
             preset = (date_preset or '').lower()
             if preset in ('24h', '7d', '30d'):
                 days = 1 if preset == '24h' else (7 if preset == '7d' else 30)
                 start_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
             else:
                 if date_from:
-                    start_date = date_from
+                    sd = str(date_from)
+                    # normalize to start of day when only a date provided
+                    start_date = sd if 'T' in sd else f"{sd}T00:00:00"
                 if date_to:
-                    end_date = date_to
-            if start_date and end_date:
+                    try:
+                        dt_to = datetime.fromisoformat(str(date_to))
+                        end_date = (dt_to + timedelta(days=1)).isoformat()
+                        end_exclusive = True
+                    except Exception:
+                        # fallback (keep as provided)
+                        ed = str(date_to)
+                        end_date = ed if 'T' in ed else f"{ed}T23:59:59"
+                        end_exclusive = False
+            # Apply date filters
+            if start_date:
                 filters_and.append({"property": date_prop, "date": {"on_or_after": start_date}})
-                filters_and.append({"property": date_prop, "date": {"on_or_before": end_date}})
-            else:
-                filters_and.append({"property": date_prop, "date": {"on_or_after": start_date or (datetime.utcnow() - timedelta(days=30)).isoformat()}})
+            if end_date:
+                if end_exclusive:
+                    filters_and.append({"property": date_prop, "date": {"before": end_date}})
+                else:
+                    filters_and.append({"property": date_prop, "date": {"on_or_before": end_date}})
+            if not start_date and not end_date:
+                filters_and.append({"property": date_prop, "date": {"on_or_after": (datetime.utcnow() - timedelta(days=30)).isoformat()}})
 
             # Labels AND filter (must contain all selected labels)
             labels = labels or []
