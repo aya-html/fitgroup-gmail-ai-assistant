@@ -628,8 +628,8 @@ def search_user_results():
         text = data.get('search')
         limit = int(data.get('limit') or 500)
 
-        user_email = current_user['email'] if user == 'current' else (user if user != 'all' else current_user['email'])
-        # For now, non-admin 'all' maps to current user's results; extend with admin logic if needed
+        # Resolve user scope: None means all users
+        user_email = None if user == 'all' else (current_user['email'] if user == 'current' else user)
 
         results = notion_manager.search_results(
             user_email=user_email,

@@ -416,9 +416,9 @@ class NotionManager:
             if not date_prop:
                 return []
 
-            # Build user filter
+            # Build user filter (only when a specific user is requested)
             filters_and: List[Dict[str, Any]] = []
-            if 'User Email' in self._results_properties:
+            if user_email and 'User Email' in self._results_properties:
                 ptype = self._prop_type('results', 'User Email')
                 if ptype == 'email':
                     filters_and.append({"property": "User Email", "email": {"equals": user_email}})
