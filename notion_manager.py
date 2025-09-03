@@ -443,14 +443,12 @@ class NotionManager:
             else:
                 filters_and.append({"property": date_prop, "date": {"on_or_after": start_date or (datetime.utcnow() - timedelta(days=30)).isoformat()}})
 
-            # Labels OR filter
+            # Labels AND filter (must contain all selected labels)
             labels = labels or []
             if labels and 'Labels' in self._results_properties and self._prop_type('results', 'Labels') == 'multi_select':
                 label_filters = [{"property": 'Labels', "multi_select": {"contains": l}} for l in labels]
-                if len(label_filters) == 1:
-                    filters_and.append(label_filters[0])
-                else:
-                    filters_and.append({"or": label_filters})
+                for lf in label_filters:
+                    filters_and.append(lf)
 
             # Text OR filter across known textual fields
             text = (text or '').strip()
