@@ -613,7 +613,7 @@ class NotionManager:
             # Action Status: select or rich_text
             if 'Action Status' in properties:
                 name = self._extract_select(properties, 'Action Status')
-                data['action_status'] = name or self._extract_rich_text(properties, 'Action Status')
+                data['action_taken'] = name or self._extract_rich_text(properties, 'Action Status')
             # Extract Labels multi-select if present
             if 'Labels' in properties and properties['Labels'].get('type') == 'multi_select':
                 data['labels'] = [it.get('name', '') for it in properties['Labels'].get('multi_select', []) if it.get('name')]
