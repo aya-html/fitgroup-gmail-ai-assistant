@@ -7,260 +7,191 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
-            --light-bg: #ecf0f1;
-            --dark-text: #2c3e50;
-            --border-radius: 10px;
-            --shadow: 0 4px 6px rgba(0,0,0,0.1);
-            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #e2e8f0;            /* slate-200 */
+            --secondary-color: #60a5fa;          /* blue-400 */
+            --accent-color: #8b5cf6;             /* violet-500 */
+            --success-color: #22c55e;            /* green-500 */
+            --warning-color: #f59e0b;            /* amber-500 */
+            --danger-color: #ef4444;             /* red-500 */
+            --bg-900: #0b1220;                   /* deep dark */
+            --bg-800: #0f172a;                   /* slate-900 */
+            --bg-700: #111827;                   /* gray-900 */
+            --card-800: #111827;                 /* dark card */
+            --card-700: #1f2937;                 /* gray-800 */
+            --muted-400: #94a3b8;                /* slate-400 */
+            --muted-500: #64748b;                /* slate-500 */
+            --border-700: #334155;               /* slate-700 */
+            --border-radius: 12px;
+            --shadow: 0 10px 30px rgba(0,0,0,0.35);
+            --glow: 0 0 0px rgba(99,102,241,0.0);
+            --gradient: radial-gradient(1200px 800px at 10% -10%, rgba(99,102,241,0.22), transparent 60%),
+                        radial-gradient(1000px 600px at 100% 0%, rgba(59,130,246,0.18), transparent 50%),
+                        linear-gradient(180deg, #0b1220 0%, #0f172a 30%, #0b1220 100%);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: var(--gradient);
             min-height: 100vh;
+            color: var(--primary-color);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--dark-text);
+            padding: 24px;
         }
 
-        .login-container {
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 40px;
-            box-shadow: var(--shadow);
+        .login-wrap {
             width: 100%;
-            max-width: 400px;
-            text-align: center;
+            max-width: 440px;
+        }
+
+        .login-card {
+            background: linear-gradient(180deg, var(--card-800), var(--card-700));
+            border: 1px solid var(--border-700);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 32px 28px;
+            backdrop-filter: blur(6px);
         }
 
         .logo {
-            margin-bottom: 30px;
+            text-align: center;
+            margin-bottom: 24px;
         }
-
         .logo i {
-            font-size: 4em;
+            font-size: 3.4em;
             color: var(--secondary-color);
-            margin-bottom: 15px;
-        }
-
-        .logo h1 {
-            color: var(--primary-color);
-            font-size: 1.8em;
+            filter: drop-shadow(0 0 18px rgba(59,130,246,0.35));
             margin-bottom: 10px;
         }
-
-        .logo p {
-            color: #7f8c8d;
-            font-size: 1em;
+        .logo h1 {
+            font-size: 1.35em;
+            letter-spacing: 0.3px;
+            color: var(--primary-color);
+            margin-bottom: 6px;
         }
-
-        .login-form {
-            margin-top: 30px;
+        .logo p {
+            color: var(--muted-400);
+            font-size: 0.95em;
         }
 
         .btn {
-            padding: 15px 30px;
+            padding: 14px 18px;
+            width: 100%;
             border: none;
-            border-radius: var(--border-radius);
-            font-size: 1.1em;
-            font-weight: 600;
+            border-radius: 10px;
+            font-size: 1.02em;
+            font-weight: 700;
+            color: #0b1220;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            color: white;
-            width: 100%;
             justify-content: center;
-            margin-bottom: 15px;
+            gap: 10px;
+            margin-top: 10px;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-        }
+        .btn:hover { transform: translateY(-1px); filter: brightness(1.02); }
+        .btn:active { transform: translateY(0px) scale(0.998); }
 
         .btn-google {
-            background: linear-gradient(45deg, #4285f4, #34a853);
+            background: linear-gradient(90deg, #60a5fa, #8b5cf6 60%, #60a5fa);
+            background-size: 200% 100%;
+            color: #0b1220;
+            border: 1px solid rgba(99,102,241,0.5);
+            box-shadow: 0 8px 24px rgba(99,102,241,0.25);
+            animation: sheen 6s linear infinite;
         }
-
-        .btn-google:hover {
-            background: linear-gradient(45deg, #3367d6, #2d8f47);
-        }
+        .btn-google i { color: #0b1220; }
+        @keyframes sheen { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
         .divider {
-            margin: 25px 0;
             position: relative;
             text-align: center;
+            margin: 22px 0 12px;
         }
-
         .divider::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
+            top: 50%; left: 0; right: 0;
             height: 1px;
-            background: #ddd;
+            background: linear-gradient(90deg, transparent, var(--border-700), transparent);
         }
-
         .divider span {
-            background: white;
-            padding: 0 15px;
-            color: #7f8c8d;
-            font-size: 0.9em;
+            position: relative;
+            background: linear-gradient(180deg, var(--card-800), var(--card-700));
+            padding: 0 10px;
+            color: var(--muted-500);
+            font-size: 0.85em;
         }
 
-        .features {
-            margin-top: 30px;
-            text-align: left;
-        }
-
-        .features h3 {
-            color: var(--primary-color);
-            margin-bottom: 15px;
-            font-size: 1.2em;
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-            color: #7f8c8d;
-        }
-
-        .feature-item i {
-            color: var(--success-color);
-            margin-right: 10px;
-            width: 16px;
-        }
-
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #7f8c8d;
-            font-size: 0.8em;
-        }
-
-        .loading {
-            display: none;
-            margin-top: 20px;
-        }
-
-        .loading i {
-            font-size: 2em;
-            color: var(--secondary-color);
-            animation: spin 2s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
+        .features { margin-top: 14px; }
+        .features h3 { color: var(--primary-color); font-size: 0.98em; margin-bottom: 10px; }
+        .feature-item { color: var(--muted-400); font-size: 0.95em; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .feature-item i { color: var(--success-color); }
 
         .alert {
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: var(--border-radius);
-            border-left: 5px solid;
             display: none;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-700);
+            background: rgba(17,24,39,0.8);
+            color: var(--primary-color);
+            margin-top: 12px;
         }
+        .alert-error { border-left: 4px solid var(--danger-color); }
+        .alert-success { border-left: 4px solid var(--success-color); }
 
-        .alert-error {
-            background: #ffeaea;
-            border-color: var(--danger-color);
-            color: var(--danger-color);
-        }
+        .loading { display: none; text-align: center; margin-top: 16px; color: var(--muted-400); }
+        .loading i { color: var(--secondary-color); font-size: 1.6em; animation: spin 1.2s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        .alert-success {
-            background: #d5f4e6;
-            border-color: var(--success-color);
-            color: var(--success-color);
-        }
+        .footer { margin-top: 22px; text-align: center; color: var(--muted-500); font-size: 0.85em; }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <!-- Logo and Title -->
-        <div class="logo">
-            <i class="fas fa-robot"></i>
-            <h1>FIT Group Gmail AI Assistant</h1>
-            <p>Email Intelligence Platform</p>
-        </div>
+    <div class="login-wrap">
+        <div class="login-card">
+            <div class="logo">
+                <h1>FIT Group Gmail AI Assistant</h1>
+                <p>Secure sign in with Google to continue</p>
+            </div>
 
-        <!-- Alert Messages -->
-        <div id="alert-container"></div>
+            <div id="alert-container"></div>
 
-        <!-- Login Form -->
-        <div class="login-form">
             <button class="btn btn-google" onclick="loginWithGoogle()">
                 <i class="fab fa-google"></i>
                 Sign in with Google
             </button>
-        </div>
 
-        <!-- Features -->
-        <div class="features">
-            <h3>What you'll get:</h3>
-            <div class="feature-item">
-                <i class="fas fa-check"></i>
-                AI-powered email analysis and classification
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-check"></i>
-                Multilingual email processing
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-check"></i>
-                Business intent detection
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-check"></i>
-                Automated response suggestions
-            </div>
-            <div class="feature-item">
-                <i class="fas fa-check"></i>
-                Shared results database
-            </div>
-        </div>
+            <div class="divider"><span>Secure OAuth 2.0</span></div>
 
-        <!-- Loading -->
-        <div id="loading" class="loading">
-            <i class="fas fa-spinner"></i>
-            <p>Connecting to Google...</p>
-        </div>
+            <div class="features">
+                <h3>What you'll get</h3>
+                <div class="feature-item"><i class="fas fa-check"></i> AI-powered email analysis</div>
+                <div class="feature-item"><i class="fas fa-check"></i> Multilingual processing</div>
+                <div class="feature-item"><i class="fas fa-check"></i> Business intent detection</div>
+                <div class="feature-item"><i class="fas fa-check"></i> Team-ready results dashboard</div>
+            </div>
 
-        <!-- Footer -->
-        <div class="footer">
-            <p>&copy; 2025 FIT Group - Advanced Email Intelligence Platform</p>
+            <div id="loading" class="loading">
+                <i class="fas fa-spinner"></i>
+                <p>Connecting to Google...</p>
+            </div>
+
+            <div class="footer">
+                <p>&copy; 2025 FIT Group • Powered by OpenAI & Google</p>
+            </div>
         </div>
     </div>
 
     <script>
         function loginWithGoogle() {
-            // Show loading
             document.getElementById('loading').style.display = 'block';
-            
-            // Hide any existing alerts
             hideAlerts();
-            
             try {
-                // Redirect to Google OAuth
                 window.location.href = '/auth/google';
             } catch (error) {
                 showError('Login failed: ' + error.message);
@@ -269,43 +200,25 @@
         }
 
         function showError(message) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `
-                <div class="alert alert-error">
-                    <i class="fas fa-exclamation-triangle"></i> ${message}
-                </div>
-            `;
-            document.querySelector('.alert').style.display = 'block';
+            const el = document.getElementById('alert-container');
+            el.innerHTML = `<div class="alert alert-error"><i class=\"fas fa-exclamation-triangle\"></i> ${message}</div>`;
+            el.querySelector('.alert').style.display = 'block';
         }
-
         function showSuccess(message) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> ${message}
-                </div>
-            `;
-            document.querySelector('.alert').style.display = 'block';
+            const el = document.getElementById('alert-container');
+            el.innerHTML = `<div class="alert alert-success"><i class=\"fas fa-check-circle\"></i> ${message}</div>`;
+            el.querySelector('.alert').style.display = 'block';
         }
-
         function hideAlerts() {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => alert.style.display = 'none');
+            document.querySelectorAll('.alert').forEach(a => a.style.display = 'none');
         }
 
-        // Check for URL parameters (error messages from OAuth callback)
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const error = urlParams.get('error');
             const success = urlParams.get('success');
-            
-            if (error) {
-                showError(decodeURIComponent(error));
-            }
-            
-            if (success) {
-                showSuccess(decodeURIComponent(success));
-            }
+            if (error) showError(decodeURIComponent(error));
+            if (success) showSuccess(decodeURIComponent(success));
         });
     </script>
 </body>
