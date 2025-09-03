@@ -740,7 +740,9 @@
         }
 
         function dtGetComparable(item, key){
-            if (key === 'date') return new Date(item.date || item.received_at || item.created_at || item.timestamp || 0).getTime();
+            if (key === 'date') return new Date(
+                item.received_date || item.processing_date || item.date || item.received_at || item.created_at || item.timestamp || 0
+            ).getTime();
             if (key === 'from') return (item.from || item.sender || '').toLowerCase();
             if (key === 'subject') return (item.subject || '').toLowerCase();
             if (key === 'status') return (item.status || (item.error ? 'failed' : 'processed')).toLowerCase();
@@ -759,7 +761,7 @@
         }
 
         function dtRenderRow(item){
-            const dateStr = dtFormatLocalDate(item.date || item.received_at || item.created_at || item.timestamp);
+            const dateStr = dtFormatLocalDate(item.received_date || item.processing_date || item.date || item.received_at || item.created_at || item.timestamp);
             const fromStr = dtFormatFrom(item);
             const subject = dtEscape(item.subject || '(no subject)');
             const gmailUrl = dtBuildGmailUrl(item);
@@ -790,7 +792,18 @@
         }
 
         function dtNormalizeLabels(item){ if (Array.isArray(item.labels)) return item.labels; if (typeof item.labels === 'string') return item.labels.split(',').map(s=>s.trim()).filter(Boolean); return []; }
-        function dtFormatLocalDate(v){ try{ const d=new Date(v); return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' }); }catch{return String(v||'');} }
+        function dtFormatLocalDate(v){
+            try {
+                if (!v) return '';
+                const s = String(v);
+                const iso = s.includes('T') ? s : `${s}T00:00:00`;
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return s;
+                return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+            } catch {
+                return String(v||'');
+            }
+        }
         function dtFormatFrom(item){ if (item.from) return item.from; const name=item.from_name||item.sender_name||''; const email=item.from_email||item.sender_email||''; return (name||email)?`${name?name+' ':''}${email?'<' + email + '>':''}`:''; }
         function dtBuildGmailUrl(item){ const threadId=item.thread_id||item.gmail_thread_id||item.threadId||''; if (threadId) return `https://mail.google.com/mail/u/0/#inbox/${threadId}`; const messageId=item.message_id||item.gmail_message_id||''; if (messageId) return `https://mail.google.com/mail/u/0/#all/${messageId}`; return 'https://mail.google.com/mail/u/0/#inbox'; }
         function dtEscape(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
