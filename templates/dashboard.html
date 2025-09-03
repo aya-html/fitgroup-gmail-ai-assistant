@@ -778,13 +778,7 @@
             const statusBadge = failed ? `<span class=\"badge-soft badge-danger\">Failed</span>` : `<span class=\"badge-soft badge-success\">Processed</span>`;
             const err = item.error ? dtEscape(String(item.error)) : '';
             const errorIcon = err ? `<span class=\"tooltip\"><i class=\"fas fa-circle-exclamation\" style=\"color:#EE5D50\"></i><span class=\"tooltiptext\">${err}</span></span>` : '';
-            
-            // Debug: Log notion URL to console
-            if (notionUrl) {
-                console.log('Notion URL found:', notionUrl, 'for item:', item.subject || 'Unknown subject');
-            } else {
-                console.log('No Notion URL for item:', item.subject || 'Unknown subject', 'Available keys:', Object.keys(item));
-            }
+
             return `
                 <tr>
                     <td>${dateStr}</td>
