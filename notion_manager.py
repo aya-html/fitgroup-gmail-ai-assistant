@@ -579,8 +579,14 @@ class NotionManager:
     def _parse_result_page(self, page: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
             properties = page.get('properties', {})
+            page_id = page['id']
+            
+            # Construct Notion database URL (not individual page URL)
+            notion_db_url = f"https://www.notion.so/{self.results_db_id.replace('-', '')}"
+            
             data: Dict[str, Any] = {
-                'result_id': page['id'],
+                'result_id': page_id,
+                'notion_url': notion_db_url,
                 'subject': self._extract_title(properties, 'Email Subject'),
                 'user_email': self._extract_email_or_text(properties, 'User Email'),
                 'sender': self._extract_email_or_text(properties, 'Sender'),

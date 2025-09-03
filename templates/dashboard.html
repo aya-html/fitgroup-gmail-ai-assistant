@@ -202,8 +202,8 @@
 
     <script>
         // Configuration
-        // const API_BASE_URL = 'http://localhost:5000';
-        const API_BASE_URL = 'https://fitgroup-gmail-ai-api.onrender.com';
+        const API_BASE_URL = 'http://localhost:5000';
+        // const API_BASE_URL = 'https://fitgroup-gmail-ai-api.onrender.com';
         
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -770,11 +770,21 @@
             const team = dtEscape(item.team_tag || item.team || '');
             const action = dtEscape(item.action_taken || '');
             const labels = dtNormalizeLabels(item).map(l=>`<span class=\"badge-soft badge-info-soft\">${dtEscape(l)}</span>`).join(' ');
-            const notionUrl = item.notion_url || item.notion_page_url || '';
+            // Get Notion database URL from backend
+            let notionUrl = item.notion_url || item.notion_page_url || '';
+            // Note: The backend now provides the database URL directly, not individual page URLs
+            
             const failed = String(item.status || '').toLowerCase() === 'failed' || !!item.error;
             const statusBadge = failed ? `<span class=\"badge-soft badge-danger\">Failed</span>` : `<span class=\"badge-soft badge-success\">Processed</span>`;
             const err = item.error ? dtEscape(String(item.error)) : '';
             const errorIcon = err ? `<span class=\"tooltip\"><i class=\"fas fa-circle-exclamation\" style=\"color:#EE5D50\"></i><span class=\"tooltiptext\">${err}</span></span>` : '';
+            
+            // Debug: Log notion URL to console
+            if (notionUrl) {
+                console.log('Notion URL found:', notionUrl, 'for item:', item.subject || 'Unknown subject');
+            } else {
+                console.log('No Notion URL for item:', item.subject || 'Unknown subject', 'Available keys:', Object.keys(item));
+            }
             return `
                 <tr>
                     <td>${dateStr}</td>
@@ -785,7 +795,7 @@
                     <td>${team || ''}</td>
                     <td>${action ? `<span class=\\\"badge-soft badge-warning-soft\\\">${action}</span>` : ''}</td>
                     <td>${labels}</td>
-                    <td>${notionUrl ? `<a href=\"${notionUrl}\" target=\"_blank\" title=\"Open in Notion\"><i class=\"fab fa-notion\"></i></a>` : ''}</td>
+                    <td>${notionUrl ? `<a href=\"${notionUrl}\" target=\"_blank\" title=\"Open in Notion\" style=\"color: #000; font-size: 16px; text-decoration: none;\">📝</a>` : ''}</td>
                     <td>${statusBadge}</td>
                     <td>${errorIcon}</td>
                 </tr>`;
