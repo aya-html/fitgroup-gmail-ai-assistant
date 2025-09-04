@@ -23,12 +23,19 @@ from gmail_assistant import GmailAssistant, EmailProcessingError
 from user_manager import UserManager
 from auth_manager import AuthManager
 from notion_manager import NotionManager
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 # Initialize Flask application
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'b6f91a2f93d64d5f9c56a02b2a6e6b8b9c7e8c9c1a3d9f7c2b5e8a7f5c1b2a9d')
 CORS(app)  # Enable CORS for frontend integration
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.config.update(
+    SESSION_COOKIE_SECURE=True,    # only send cookie over HTTPS
+    SESSION_COOKIE_SAMESITE="Lax", # prevents login redirect issues
+)
 
 # Configure logging
 logging.basicConfig(
@@ -137,11 +144,11 @@ with app.app_context():
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
-    """Redirect to appropriate page when a route is not found"""
+    if request.path.startswith("/auth/google"):
+        return "Invalid OAuth callback URL", 400
     if auth_manager and auth_manager.is_authenticated():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login_page'))
-
 
 @app.errorhandler(500)
 def internal_error(error):
@@ -187,23 +194,27 @@ def google_auth():
 
 @app.route('/auth/google/callback')
 def google_callback():
-    """Handle Google OAuth2 callback"""
+    redirect_uri = url_for('google_callback', _external=True)
+
     if not auth_manager:
         return jsonify({'error': 'Authentication not configured'}), 503
     
     try:
         authorization_response = request.url
-        redirect_uri = url_for('google_callback', _external=True)
-        
+        redirect_uri = url_for('google_callback', _external=True)  # now correctly HTTPS on Render
+
         result = auth_manager.handle_oauth_callback(authorization_response, redirect_uri)
+
         if result:
+            # ✅ User authenticated, go to dashboard
             return redirect(url_for('dashboard'))
         else:
-            return redirect(url_for('login_page'))
-            
+            # ❌ Authentication failed, stay on login (avoid infinite loop by not sending them back to Google immediately)
+            return "Login failed. Please try again.", 401
+
     except Exception as e:
         logger.error(f"❌ OAuth callback failed: {str(e)}")
-        return redirect(url_for('login_page'))
+        return "Authentication error. Please try again.", 500
 
 @app.route('/logout')
 def logout():
