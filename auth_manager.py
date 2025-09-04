@@ -62,6 +62,7 @@ class AuthManager:
                 self.oauth_config,
                 scopes=self.SCOPES
             )
+            print(f"===self.oauth_config=====\n\n\n\n{self.oauth_config}\n\n\n\n========")
             flow.redirect_uri = redirect_uri
 
             authorization_url, state = flow.authorization_url(
