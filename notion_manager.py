@@ -10,7 +10,8 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from notion_client import Client as NotionClient
-
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 class NotionManager:
     """Manages Notion database operations for multi-user system"""
@@ -427,39 +428,44 @@ class NotionManager:
                 else:
                     filters_and.append({"property": "User Email", "rich_text": {"equals": user_email}})
 
-            # Date filter (supports presets and custom range). For custom:
-            # - from: inclusive at start of day
-            # - to: inclusive end of day (implemented via before next-day 00:00)
+
+            # Date filtering with local timezone handling
             start_date: Optional[str] = None
             end_date: Optional[str] = None
-            end_exclusive = False
             preset = (date_preset or '').lower()
+
+            now = datetime.now()
+            now = now.replace(hour=0, minute=0, second=0, microsecond=0)  # Start of today
+
             if preset in ('24h', '7d', '30d'):
                 days = 1 if preset == '24h' else (7 if preset == '7d' else 30)
-                start_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+                start_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
             else:
                 if date_from:
-                    sd = str(date_from)
-                    start_date = sd if 'T' in sd else f"{sd}T00:00:00"
+                    # For start date, use the date as is
+                    start_date = str(date_from).split('T')[0]  # Take just the date part
                 if date_to:
+                    # For end date, use the next day as exclusive end
                     try:
-                        dt_to = datetime.fromisoformat(str(date_to))
-                        end_date = (dt_to + timedelta(days=1)).isoformat()
-                        end_exclusive = True
-                    except Exception:
-                        ed = str(date_to)
-                        end_date = ed if 'T' in ed else f"{ed}T23:59:59"
-                        end_exclusive = False
+                        end_dt = datetime.strptime(str(date_to).split('T')[0], "%Y-%m-%d")
+                        end_dt = end_dt + timedelta(days=1)  # Move to start of next day
+                        end_date = end_dt.strftime("%Y-%m-%d")
+                    except ValueError:
+                        end_date = str(date_to).split('T')[0]  # Fallback to original date
+
             # Apply date filters
             if start_date:
                 filters_and.append({"property": date_prop, "date": {"on_or_after": start_date}})
             if end_date:
-                if end_exclusive:
-                    filters_and.append({"property": date_prop, "date": {"before": end_date}})
-                else:
-                    filters_and.append({"property": date_prop, "date": {"on_or_before": end_date}})
+                filters_and.append({"property": date_prop, "date": {"before": end_date}})  # Using "before" for exclusive end
+
+            # Default: last 30 days
             if not start_date and not end_date:
-                filters_and.append({"property": date_prop, "date": {"on_or_after": (datetime.utcnow() - timedelta(days=30)).isoformat()}})
+                default_start = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+                filters_and.append({
+                    "property": date_prop,
+                    "date": {"on_or_after": default_start}
+                })
 
             # Labels AND filter (must contain all selected labels)
             labels = labels or []
