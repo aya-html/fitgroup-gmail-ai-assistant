@@ -9,6 +9,174 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" rel="stylesheet">
     <link href="/static/css/dashboard.css" rel="stylesheet">
+    <style>
+        /* Filter controls styling */
+        .filter-row .control select,
+        .filter-row .control input[type="text"],
+        .filter-row .control input[type="date"] {
+            height: 38px;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        
+        .filter-row .control select:hover,
+        .filter-row .control input[type="text"]:hover,
+        .filter-row .control input[type="date"]:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .filter-row .control select:focus,
+        .filter-row .control input[type="text"]:focus,
+        .filter-row .control input[type="date"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.1);
+        }
+        
+        .filter-row .control input[type="date"]:disabled {
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        /* Ensure all controls align properly */
+        .filter-row {
+            align-items: flex-end;
+        }
+        
+        .filter-row .control label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 1200px) {
+            .filter-row .control {
+                flex: 1 1 100%;
+                min-width: 100% !important;
+            }
+            
+            .filter-row .actions {
+                width: 100%;
+                margin-top: 16px;
+            }
+            
+            .filter-row .actions button {
+                flex: 1;
+            }
+        }
+    </style>
+    <style>
+        /* Filter Controls Styling */
+        .table-controls {
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .filter-row {
+            margin-bottom: 16px;
+        }
+        
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .control select,
+        .control input[type="text"],
+        .control input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.4;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        .control select:focus,
+        .control input[type="text"]:focus,
+        .control input[type="date"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.1);
+        }
+        
+        #dt-filter-labels {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+        
+        #dt-filter-labels::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        #dt-filter-labels::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #dt-filter-labels::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 3px;
+        }
+        
+        #dt-filter-labels label {
+            font-weight: normal;
+            margin: 0;
+            padding: 4px 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        
+        #dt-filter-labels label:hover {
+            background: var(--bg-hover);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+            }
+            
+            .control {
+                width: 100% !important;
+                margin-bottom: 12px;
+            }
+            
+            .actions {
+                width: 100%;
+            }
+            
+            .actions button {
+                flex: 1;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -125,41 +293,46 @@
             <h2><i class="fas fa-table"></i> Detailed Email Results</h2>
 
             <div class="table-controls">
-                <div class="control">
-                    <label for="dt-filter-user">User</label>
-                    <select id="dt-filter-user">
-                        <option value="current" selected>Current User</option>
-                    </select>
-                </div>
-                <div class="control">
-                    <label>Labels</label>
-                    <div id="dt-filter-labels" style="max-height:140px; overflow:auto; border:1px solid var(--border-color); border-radius:10px; padding:8px; background: var(--bg-secondary);">
-                        <!-- checkboxes will be injected here -->
+                <!-- First Row: Common Filters -->
+                                <div class="filter-row" style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+                    <div class="control" style="min-width:200px;">
+                        <label for="dt-filter-user">User</label>
+                        <select id="dt-filter-user" style="width:100%;">
+                            <option value="current" selected>Current User</option>
+                        </select>
+                    </div>
+                    <div class="control" style="flex:1; min-width:420px;">
+                        <label for="dt-filter-date">Date Range</label>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <select id="dt-filter-date" style="width:140px;">
+                                <option value="24h">Last 24h</option>
+                                <option value="7d" selected>Last 7d</option>
+                                <option value="30d">Last 30d</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                            <input type="date" id="dt-date-from" style="width:140px;" disabled>
+                            <span style="color:var(--text-secondary);">to</span>
+                            <input type="date" id="dt-date-to" style="width:140px;" disabled>
+                        </div>
+                    </div>
+                    <div class="control" style="flex:1; min-width:240px;">
+                        <label for="dt-filter-search">Search</label>
+                        <input type="text" id="dt-filter-search" style="width:100%;" placeholder="Search subject, from, summary">
+                    </div>
+                    <div class="actions" style="display:flex; gap:8px; align-items:flex-end;">
+                        <button class="btn btn-info" id="dt-refresh"><i class="fas fa-rotate"></i> Refresh</button>
+                        <button class="btn btn-primary" id="dt-process"><i class="fas fa-magic"></i> Process</button>
                     </div>
                 </div>
-                <div class="control">
-                    <label for="dt-filter-date">Date Range</label>
-                    <select id="dt-filter-date">
-                        <option value="24h">Last 24h</option>
-                        <option value="7d" selected>Last 7d</option>
-                        <option value="30d">Last 30d</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                </div>
-                <div class="control hidden" id="dt-custom-date-wrap">
-                    <label>Custom From / To</label>
-                    <div style="display:flex; gap:8px;">
-                        <input type="date" id="dt-date-from">
-                        <input type="date" id="dt-date-to">
+                
+                <!-- Second Row: Labels -->
+                <div class="filter-row">
+                    <div class="control" style="width:100%;">
+                        <label>Labels</label>
+                        <div id="dt-filter-labels" style="max-height:120px; overflow:auto; border:1px solid var(--border-color); border-radius:10px; padding:8px; background: var(--bg-secondary); display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start;">
+                            <!-- checkboxes will be injected here -->
+                        </div>
                     </div>
-                </div>
-                <div class="control" style="flex:1; min-width:240px;">
-                    <label for="dt-filter-search">Search</label>
-                    <input type="text" id="dt-filter-search" placeholder="Search subject, from, summary">
-                </div>
-                <div class="actions">
-                    <button class="btn btn-info" id="dt-refresh"><i class="fas fa-rotate"></i> Refresh</button>
-                    <button class="btn btn-primary" id="dt-process"><i class="fas fa-magic"></i> Process</button>
                 </div>
             </div>
 
@@ -605,7 +778,7 @@
 
             userSel.addEventListener('change', () => {
                 dtState.filters.user = userSel.value;
-                dtFetchAndRender();
+                // dtFetchAndRender();
             });
             // Fetch labels from Notion and render as checkboxes on load
             dtLoadLabelsCheckboxes(labelsWrap).then(() => {
@@ -613,17 +786,28 @@
             });
             dateSel.addEventListener('change', () => {
                 dtState.filters.datePreset = dateSel.value;
-                if (customWrap) {
-                    const isCustom = (dateSel.value === 'custom');
-                    customWrap.classList.toggle('hidden', !isCustom);
-                    customWrap.style.display = isCustom ? 'block' : 'none';
+                const isCustom = (dateSel.value === 'custom');
+                
+                // Enable/disable date inputs
+                fromInput.disabled = !isCustom;
+                toInput.disabled = !isCustom;
+                
+                if (!isCustom) {
+                    // Clear custom date values when switching to preset
+                    fromInput.value = '';
+                    toInput.value = '';
+                    dtState.filters.from = null;
+                    dtState.filters.to = null;
                 }
-                if (dateSel.value !== 'custom') dtFetchAndRender();
+                // if (dateSel.value !== 'custom') dtFetchAndRender();
             });
             fromInput.addEventListener('change', (e)=>{ dtState.filters.from = e.target.value; });
-            toInput.addEventListener('change', (e)=>{ dtState.filters.to = e.target.value; dtFetchAndRender(); });
+            toInput.addEventListener('change', (e)=>{
+                dtState.filters.to = e.target.value;
+                // dtFetchAndRender();
+            });
             searchInp.addEventListener('input', () => { dtState.filters.search = searchInp.value.trim().toLowerCase(); dtState.page = 1; dtApplyFiltersAndRender(); });
-            btnRefresh.addEventListener('click', () => dtFetchAndRender());
+            btnRefresh.addEventListener('click', () => dtRefresh());
             btnProcess.addEventListener('click', () => dtProcessForContext());
             btnPrev.addEventListener('click', () => { if (dtState.page>1){ dtState.page--; dtRenderTable(); } });
             btnNext.addEventListener('click', () => { const totalPages = Math.max(1, Math.ceil(dtState.filtered.length / dtState.perPage)); if (dtState.page<totalPages){ dtState.page++; dtRenderTable(); } });
@@ -667,7 +851,7 @@
                     if (t.checked) dtState.filters.labels.add(t.value); else dtState.filters.labels.delete(t.value);
                     dtState.page = 1;
                     // Re-fetch so backend AND label filtering applies
-                    dtFetchAndRender();
+                    // dtFetchAndRender();
                 }
             });
         }
@@ -684,6 +868,60 @@
                 if (diff > 0) return Math.min(Math.max(diff,1), 30);
             }
             return 7;
+        }
+
+        async function dtRefresh() {
+            dtSetLoading(true);
+            try {
+                // Reset state with default values
+                dtState.filters = { user: 'current', labels: new Set(['INBOX']), datePreset: '7d', from: null, to: null, search: '' };
+                
+                // Fetch fresh user list
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/admin/users`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const userSel = document.getElementById('dt-filter-user');
+                        if (userSel) {
+                            userSel.innerHTML = '<option value="current" selected>Current User</option><option value="all">All Users</option>' +
+                                data.users.map(u=>`<option value="${u.email}">${u.email}</option>`).join('');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to refresh users:', e);
+                }
+
+                // Fetch fresh labels
+                const labelsWrap = document.getElementById('dt-filter-labels');
+                if (labelsWrap) {
+                    await dtLoadLabelsCheckboxes(labelsWrap);
+                    dtWireLabelCheckboxes(labelsWrap);
+                }
+
+                // Reset other controls
+                const
+                    dateSel = document.getElementById('dt-filter-date'),
+                    customWrap = document.getElementById('dt-custom-date-wrap'),
+                    fromInput = document.getElementById('dt-date-from'),
+                    toInput = document.getElementById('dt-date-to'),
+                    searchInp = document.getElementById('dt-filter-search');
+
+                if (dateSel) dateSel.value = '7d';
+                if (customWrap) { customWrap.classList.add('hidden'); customWrap.style.display = 'none'; }
+                if (fromInput) fromInput.value = '';
+                if (toInput) toInput.value = '';
+                if (searchInp) searchInp.value = '';
+
+                // Fetch data with new filters
+                await dtFetchAndRender();
+                dtShowToast('Refreshed successfully', 'success');
+            } catch (e) {
+                dtShowToast('Refresh failed: ' + e.message, 'error');
+            } finally {
+                dtSetLoading(false);
+            }
+
+        
         }
 
         async function dtFetchAndRender() {
