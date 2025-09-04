@@ -10,7 +10,7 @@ load_dotenv()
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any
 
 
@@ -33,8 +33,11 @@ CORS(app)  # Enable CORS for frontend integration
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.update(
-    SESSION_COOKIE_SECURE=True,    # only send cookie over HTTPS
-    SESSION_COOKIE_SAMESITE="Lax", # prevents login redirect issues
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+    SESSION_REFRESH_EACH_REQUEST=True
 )
 
 # Configure logging
@@ -194,27 +197,39 @@ def google_auth():
 
 @app.route('/auth/google/callback')
 def google_callback():
-    redirect_uri = url_for('google_callback', _external=True)
-
     if not auth_manager:
         return jsonify({'error': 'Authentication not configured'}), 503
     
     try:
         authorization_response = request.url
-        redirect_uri = url_for('google_callback', _external=True)  # now correctly HTTPS on Render
+        redirect_uri = url_for('google_callback', _external=True)
 
+        # Add error logging
+        logger.info(f"Processing OAuth callback with redirect_uri: {redirect_uri}")
+        
         result = auth_manager.handle_oauth_callback(authorization_response, redirect_uri)
+        
+        if not result:
+            logger.error("OAuth callback returned False")
+            return redirect(url_for('login_page'))
 
-        if result:
-            # ✅ User authenticated, go to dashboard
-            return redirect(url_for('dashboard'))
-        else:
-            # ❌ Authentication failed, stay on login (avoid infinite loop by not sending them back to Google immediately)
-            return "Login failed. Please try again.", 401
+        # Verify tokens were saved
+        current_user = auth_manager.get_current_user()
+        if not current_user:
+            logger.error("User not found after OAuth callback")
+            return redirect(url_for('login_page'))
+
+        user_creds = auth_manager.get_user_credentials()
+        if not user_creds or not user_creds.refresh_token:
+            logger.error("Missing refresh token after OAuth callback")
+            # Force new OAuth flow with prompt
+            return redirect(url_for('google_auth', prompt='consent'))
+
+        return redirect(url_for('dashboard'))
 
     except Exception as e:
         logger.error(f"❌ OAuth callback failed: {str(e)}")
-        return "Authentication error. Please try again.", 500
+        return redirect(url_for('login_page'))
 
 @app.route('/logout')
 def logout():
@@ -712,4 +727,4 @@ if __name__ == '__main__':
         logger.error(f"❌ Failed to start application: {str(e)}")
         print(f"Application startup failed: {str(e)}")
         exit(1)
-        
+
