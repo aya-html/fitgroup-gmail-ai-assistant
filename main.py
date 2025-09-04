@@ -224,18 +224,6 @@ def dashboard():
     
     return render_template('dashboard.html')
 
-# Legacy admin route (redirects to dashboard for multi-user)
-@app.route('/admin', methods=['GET'])
-def admin_page():
-    if auth_manager and auth_manager.is_authenticated():
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login_page'))
-
-# API Routes
-@app.route('/gmail_assistant', methods=['GET'])
-def gmail_assistant_page():
-    return render_template('gmail_assistant.html')
-
 @app.route('/', methods=['GET'])
 def home():
     """Root redirect based on authentication state"""
@@ -536,7 +524,6 @@ def test_connection():
             'error': 'Connection test failed',
             'message': str(e)
         }), 500
-
 
 
 # Multi-user API endpoints
