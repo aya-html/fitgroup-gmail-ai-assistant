@@ -232,96 +232,92 @@ def home():
     return redirect(url_for('login_page'))
 
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check endpoint for monitoring"""
-    try:
-        # Check if services are initialized
-        services = {
-            'auth': bool(auth_manager),
-            'user_manager': bool(user_manager),
-            'notion_api': bool(notion_manager)
-        }
-        
-        if not all(services.values()):
-            return jsonify({
-                'status': 'unhealthy',
-                'message': 'Core services not initialized',
-                'timestamp': datetime.utcnow().isoformat(),
-                'services': services,
-                'mode': 'multi-user'
-            }), 503
-        
-        # Enhanced connectivity checks
-        connectivity = {
-            'notion': False,
-            'openai_key': bool(os.environ.get('OPENAI_API_KEY')),
-            'google_oauth': bool(os.environ.get('GOOGLE_CLIENT_SECRET_JSON'))
-        }
-        
-        # Test Notion connectivity
-        try:
-            if notion_manager:
-                # Try a simple database query to test connectivity
-                notion_manager._ensure_databases()
-                connectivity['notion'] = True
-        except Exception as e:
-            logger.warning(f"Notion connectivity check failed: {str(e)}")
-        
-        # Overall health status
-        overall_healthy = all(services.values()) and connectivity['openai_key'] and connectivity['google_oauth']
-        
-        return jsonify({
-            'status': 'healthy' if overall_healthy else 'degraded',
-            'message': 'Core services operational' if overall_healthy else 'Some services degraded',
+def build_health_data():
+    """Build health status dict (shared by endpoints)"""
+    services = {
+        'auth': bool(auth_manager),
+        'user_manager': bool(user_manager),
+        'notion_api': bool(notion_manager)
+    }
+
+    if not all(services.values()):
+        return {
+            'status': 'unhealthy',
+            'message': 'Core services not initialized',
             'timestamp': datetime.utcnow().isoformat(),
             'services': services,
-            'connectivity': connectivity,
-            'version': '2.0.0',
-            'mode': 'multi-user',
-            'uptime': 'Running'
-        })
-        
+            'mode': 'multi-user'
+        }, 503
+
+    connectivity = {
+        'notion': False,
+        'openai_key': bool(os.environ.get('OPENAI_API_KEY')),
+        'google_oauth': bool(os.environ.get('GOOGLE_CLIENT_SECRET_JSON'))
+    }
+
+    try:
+        if notion_manager:
+            notion_manager._ensure_databases()
+            connectivity['notion'] = True
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
-        }), 503
+        logger.warning(f"Notion connectivity check failed: {str(e)}")
+
+    overall_healthy = all(services.values()) and connectivity['openai_key'] and connectivity['google_oauth']
+
+    return {
+        'status': 'healthy' if overall_healthy else 'degraded',
+        'message': 'Core services operational' if overall_healthy else 'Some services degraded',
+        'timestamp': datetime.utcnow().isoformat(),
+        'services': services,
+        'connectivity': connectivity,
+        'version': '2.0.0',
+        'mode': 'multi-user',
+        'uptime': 'Running'
+    }, 200 if overall_healthy else 200  # degraded still 200
+        
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    data, status = build_health_data()
+    return jsonify(data), status
 
 
+@app.route('/api/stats', methods=['GET'])
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     """Get system statistics and capabilities"""
     try:
-        services = {
-            'auth': bool(auth_manager),
-            'user_manager': bool(user_manager),
-            'notion_api': bool(notion_manager)
-        }
+        data, status_code = build_health_data()
+        services = data['services']
+
+        # If core services not initialized
         if not all(services.values()):
             return jsonify({'error': 'Core services not initialized', 'services': services}), 503
-        
+
         stats = {
             'mode': 'multi-user',
             'services': services,
+            'system_status': data['status'],  # directly from build_health_data
+            'version': data.get('version'),
+            'command_categories': len(GmailAssistant.BUSINESS_COMMANDS),
+            'supported_languages': ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch', 'Chinese', 'Arabic'],
             'timestamp': datetime.utcnow().isoformat()
         }
+
+        # Add user count if available
         try:
             users = user_manager.get_all_users()
             stats['users_count'] = len(users)
         except Exception:
             stats['users_count'] = None
-        return jsonify(stats)
-        
+
+        return jsonify(stats), status_code
+
     except Exception as e:
         logger.error(f"Stats retrieval failed: {str(e)}")
         return jsonify({
             'error': 'Failed to retrieve statistics',
             'message': str(e)
         }), 500
-
 
 @app.route('/api/process-emails', methods=['POST'])
 def process_emails():
