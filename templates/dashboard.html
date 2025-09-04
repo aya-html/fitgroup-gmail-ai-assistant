@@ -73,8 +73,7 @@
                 flex: 1;
             }
         }
-    </style>
-    <style>
+
         /* Filter Controls Styling */
         .table-controls {
             background: var(--bg-secondary);
@@ -180,7 +179,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <div class="user-bar">
                 <span id="user-email" class="user-email"><i class="fas fa-user-circle"></i> Loading...</span>
@@ -191,7 +189,6 @@
             <p><strong>API Endpoint:</strong> <span id="api-endpoint">https://fitgroup-gmail-ai-api.onrender.com</span></p>
         </div>
 
-        <!-- Status Bar -->
         <div class="status-bar">
             <div class="status-card">
                 <i class="fas fa-server status-loading" id="system-status-icon"></i>
@@ -215,9 +212,7 @@
             </div>
         </div>
 
-        <!-- Main Controls -->
         <div class="main-controls">
-            <!-- Email Processing -->
             <div class="control-panel">
                 <h2><i class="fas fa-cogs"></i> Email Processing</h2>
                 
@@ -248,7 +243,6 @@
                 </button>
             </div>
 
-            <!-- Quick Actions -->
             <div class="control-panel">
                 <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
                 
@@ -278,7 +272,6 @@
             </div>
         </div>
 
-        <!-- Results Panel -->
         <div class="results-panel">
             <h2><i class="fas fa-chart-line"></i> Processing Results</h2>
             <div id="results-container">
@@ -288,13 +281,10 @@
             </div>
         </div>
 
-        <!-- Detailed Email Results Panel -->
         <div class="table-panel" id="detailed-table-panel">
             <h2><i class="fas fa-table"></i> Detailed Email Results</h2>
-
             <div class="table-controls">
-                <!-- First Row: Common Filters -->
-                                <div class="filter-row" style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+                <div class="filter-row" style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
                     <div class="control" style="min-width:200px;">
                         <label for="dt-filter-user">User</label>
                         <select id="dt-filter-user" style="width:100%;">
@@ -324,13 +314,10 @@
                         <button class="btn btn-primary" id="dt-process"><i class="fas fa-magic"></i> Process</button>
                     </div>
                 </div>
-                
-                <!-- Second Row: Labels -->
                 <div class="filter-row">
                     <div class="control" style="width:100%;">
                         <label>Labels</label>
                         <div id="dt-filter-labels" style="max-height:120px; overflow:auto; border:1px solid var(--border-color); border-radius:10px; padding:8px; background: var(--bg-secondary); display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start;">
-                            <!-- checkboxes will be injected here -->
                         </div>
                     </div>
                 </div>
@@ -364,10 +351,8 @@
             </div>
         </div>
 
-        <!-- Toast -->
         <div id="toast" class="toast hidden"><i class="fas fa-info-circle"></i><span></span></div>
 
-        <!-- Footer -->
         <div class="footer">
             <p>&copy; 2025 FIT Group - Advanced Email Intelligence Platform | Powered by OpenAI GPT-4</p>
         </div>
@@ -375,8 +360,8 @@
 
     <script>
         // Configuration
-        const API_BASE_URL = 'http://localhost:5000';
-        // const API_BASE_URL = 'https://fitgroup-gmail-ai-api.onrender.com';
+        // const API_BASE_URL = 'http://localhost:5000';
+        const API_BASE_URL = 'https://fitgroup-gmail-ai-api.onrender.com';
         
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -405,10 +390,10 @@
                 }
             } catch (error) {
                 // keep placeholder on error
+                console.log('fetchUserProfile(): ', error);
             }
         }
 
-        // Check system health on load
         async function checkSystemHealth() {
             try {
                 showLoading('Checking system health...');
@@ -418,7 +403,6 @@
                 
                 updateSystemStatus('system', data.status === 'healthy', data.status);
                 
-                // Test individual connections
                 testConnection(false);
                 
             } catch (error) {
@@ -427,12 +411,10 @@
             }
         }
 
-        // Test API connections
         async function testConnection(showAlert = true) {
             const testButton = document.querySelector('.btn-success[onclick="testConnection()"]');
             let originalButtonContent = ''
             if (showAlert && testButton) {
-                // Disable button and change icon
                 testButton.disabled = true;
                 originalButtonContent = testButton.innerHTML;
                 testButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing Connections...';
@@ -444,7 +426,6 @@
                 const response = await fetch(`${API_BASE_URL}/api/test-connection`);
                 const data = await response.json();
                 
-                // Update individual service statuses
                 updateSystemStatus('gmail', data.gmail_api, data.gmail_api ? 'Connected' : 'Failed');
                 updateSystemStatus('openai', data.openai_api, data.openai_api ? 'Connected' : 'Failed');
                 updateSystemStatus('notion', data.notion_api, data.notion_api ? 'Connected' : 'Not Configured');
@@ -458,25 +439,21 @@
             } catch (error) {
                 if (showAlert) {
                     showError('Connection test failed: ' + error.message);
-                    hideLoading();
                 }
             } finally {
                 if (showAlert && testButton) {
-                    // Re-enable button and restore original icon
                     testButton.disabled = false;
                     testButton.innerHTML = originalButtonContent;
                 }
             }
         }
 
-        // Process emails
         async function processEmails() {
             const processButton = document.querySelector('.btn-primary[onclick="processEmails()"]');
             const days = parseInt(document.getElementById('days-input').value);
             const maxEmails = parseInt(document.getElementById('max-emails-input').value);
             const mode = document.getElementById('processing-mode').value;
             
-            // Validation
             if (days < 1 || days > 30) {
                 showError('Days must be between 1 and 30');
                 return;
@@ -490,7 +467,6 @@
             const originalButtonContent = processButton.innerHTML;
 
             try {
-                // Disable button and change icon
                 processButton.disabled = true;
                 processButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Emails...';
                 showLoading(`Processing ${maxEmails} Emails for ${days} days...`);
@@ -518,20 +494,20 @@
                     displayResults(result);
                     showSuccess(`✅ Successfully processed ${result.processed_count} emails in ${result.processing_time?.toFixed(2)}s`);
                 } else {
+                    console.log(result.error);
+
                     showError('Processing failed: ' + (result.error || 'Unknown error'));
                 }
                 
             } catch (error) {
+                console.log('Processing request failed: ', error);
                 showError('Processing request failed: ' + error.message);
             } finally {
-                // Re-enable button and restore original icon
                 processButton.innerHTML = originalButtonContent;
                 processButton.disabled = false;
-                hideLoading();
             }
         }
 
-        // Quick action functions
         async function processRecentEmails() {
             document.getElementById('days-input').value = 1;
             document.getElementById('max-emails-input').value = 20;
@@ -545,7 +521,6 @@
             await processEmails();
         }
 
-        // Get system statistics
         async function getStats() {
             try {
                 showLoading('Fetching system statistics...');
@@ -554,15 +529,12 @@
                 const data = await response.json();
                 
                 displaySystemStats(data);
-                hideLoading();
                 
             } catch (error) {
-                hideLoading();
                 showError('Failed to fetch statistics: ' + error.message);
             }
         }
 
-        // Display functions
         function displayResults(result) {
             const container = document.getElementById('results-container');
             
@@ -692,7 +664,6 @@
             return icons[service] || 'fa-question';
         }
 
-        // Utility functions
         function showLoading(message) {
             const container = document.getElementById('results-container');
             container.innerHTML = `
@@ -700,10 +671,6 @@
                     <p style="margin-top: 20px; color: var(--secondary-color);">${message}</p>
                 </div>
             `;
-        }
-
-        function hideLoading() {
-            // Loading will be replaced by results or error messages
         }
 
         function showSuccess(message) {
@@ -733,7 +700,6 @@
         // Auto-refresh status every 5 minutes
         setInterval(checkSystemHealth, 300000);
 
-        // ===== Detailed Table Panel Logic =====
         const dtState = {
             data: [],
             filtered: [],
@@ -769,7 +735,6 @@
                 } catch {}
             })();
 
-            // Set initial visibility for custom date range
             if (customWrap) {
                 const isCustom = (dateSel && dateSel.value === 'custom');
                 customWrap.classList.toggle('hidden', !isCustom);
@@ -778,9 +743,7 @@
 
             userSel.addEventListener('change', () => {
                 dtState.filters.user = userSel.value;
-                // dtFetchAndRender();
             });
-            // Fetch labels from Notion and render as checkboxes on load
             dtLoadLabelsCheckboxes(labelsWrap).then(() => {
                 dtWireLabelCheckboxes(labelsWrap);
             });
@@ -788,23 +751,19 @@
                 dtState.filters.datePreset = dateSel.value;
                 const isCustom = (dateSel.value === 'custom');
                 
-                // Enable/disable date inputs
                 fromInput.disabled = !isCustom;
                 toInput.disabled = !isCustom;
                 
                 if (!isCustom) {
-                    // Clear custom date values when switching to preset
                     fromInput.value = '';
                     toInput.value = '';
                     dtState.filters.from = null;
                     dtState.filters.to = null;
                 }
-                // if (dateSel.value !== 'custom') dtFetchAndRender();
             });
             fromInput.addEventListener('change', (e)=>{ dtState.filters.from = e.target.value; });
             toInput.addEventListener('change', (e)=>{
                 dtState.filters.to = e.target.value;
-                // dtFetchAndRender();
             });
             searchInp.addEventListener('input', () => { dtState.filters.search = searchInp.value.trim().toLowerCase(); dtState.page = 1; dtApplyFiltersAndRender(); });
             btnRefresh.addEventListener('click', () => dtRefresh());
@@ -822,7 +781,6 @@
             });
         }
 
-        // Load labels list and render as checkboxes
         async function dtLoadLabelsCheckboxes(container){
             if (!container) return;
             container.innerHTML = '<span style="color: var(--text-secondary)"><i class="fas fa-spinner fa-spin"></i> Loading labels...</span>';
@@ -850,8 +808,6 @@
                 if (t && t.type === 'checkbox'){
                     if (t.checked) dtState.filters.labels.add(t.value); else dtState.filters.labels.delete(t.value);
                     dtState.page = 1;
-                    // Re-fetch so backend AND label filtering applies
-                    // dtFetchAndRender();
                 }
             });
         }
@@ -873,10 +829,8 @@
         async function dtRefresh() {
             dtSetLoading(true);
             try {
-                // Reset state with default values
                 dtState.filters = { user: 'current', labels: new Set(['INBOX']), datePreset: '7d', from: null, to: null, search: '' };
                 
-                // Fetch fresh user list
                 try {
                     const res = await fetch(`${API_BASE_URL}/api/admin/users`);
                     if (res.ok) {
@@ -891,14 +845,12 @@
                     console.warn('Failed to refresh users:', e);
                 }
 
-                // Fetch fresh labels
                 const labelsWrap = document.getElementById('dt-filter-labels');
                 if (labelsWrap) {
                     await dtLoadLabelsCheckboxes(labelsWrap);
                     dtWireLabelCheckboxes(labelsWrap);
                 }
 
-                // Reset other controls
                 const
                     dateSel = document.getElementById('dt-filter-date'),
                     customWrap = document.getElementById('dt-custom-date-wrap'),
@@ -912,7 +864,6 @@
                 if (toInput) toInput.value = '';
                 if (searchInp) searchInp.value = '';
 
-                // Fetch data with new filters
                 await dtFetchAndRender();
                 dtShowToast('Refreshed successfully', 'success');
             } catch (e) {
@@ -999,23 +950,22 @@
         }
 
         function dtRenderRow(item){
-            const dateStr = dtFormatLocalDate(item.received_date || item.processing_date || item.date || item.received_at || item.created_at || item.timestamp);
-            const fromStr = dtFormatFrom(item);
-            const subject = dtEscape(item.subject || '(no subject)');
-            const gmailUrl = dtBuildGmailUrl(item);
-            const summary = dtEscape(item.summary || item.ai_summary || '');
-            const commands = Array.isArray(item.detected_commands) ? item.detected_commands : (typeof item.detected_commands === 'string' ? item.detected_commands.split(',').map(s=>s.trim()).filter(Boolean) : []);
-            const team = dtEscape(item.team_tag || item.team || '');
-            const action = dtEscape(item.action_taken || '');
-            const labels = dtNormalizeLabels(item).map(l=>`<span class=\"badge-soft badge-info-soft\">${dtEscape(l)}</span>`).join(' ');
-            // Get Notion database URL from backend
+            const
+                dateStr = dtFormatLocalDate(item.received_date || item.processing_date || item.date || item.received_at || item.created_at || item.timestamp),
+                fromStr = dtFormatFrom(item),
+                subject = dtEscape(item.subject || '(no subject)'),
+                gmailUrl = dtBuildGmailUrl(item),
+                summary = dtEscape(item.summary || item.ai_summary || ''),
+                commands = Array.isArray(item.detected_commands) ? item.detected_commands : (typeof item.detected_commands === 'string' ? item.detected_commands.split(',').map(s=>s.trim()).filter(Boolean) : []),
+                team = dtEscape(item.team_tag || item.team || ''),
+                action = dtEscape(item.action_taken || ''),
+                labels = dtNormalizeLabels(item).map(l=>`<span class=\"badge-soft badge-info-soft\">${dtEscape(l)}</span>`).join(' '),
+                failed = String(item.status || '').toLowerCase() === 'failed' || !!item.error,
+                statusBadge = failed ? `<span class=\"badge-soft badge-danger\">Failed</span>` : `<span class=\"badge-soft badge-success\">Processed</span>`,
+                err = item.error ? dtEscape(String(item.error)) : '',
+                errorIcon = err ? `<span class=\"tooltip\"><i class=\"fas fa-circle-exclamation\" style=\"color:#EE5D50\"></i><span class=\"tooltiptext\">${err}</span></span>` : '';
+                
             let notionUrl = item.notion_url || item.notion_page_url || '';
-            // Note: The backend now provides the database URL directly, not individual page URLs
-            
-            const failed = String(item.status || '').toLowerCase() === 'failed' || !!item.error;
-            const statusBadge = failed ? `<span class=\"badge-soft badge-danger\">Failed</span>` : `<span class=\"badge-soft badge-success\">Processed</span>`;
-            const err = item.error ? dtEscape(String(item.error)) : '';
-            const errorIcon = err ? `<span class=\"tooltip\"><i class=\"fas fa-circle-exclamation\" style=\"color:#EE5D50\"></i><span class=\"tooltiptext\">${err}</span></span>` : '';
 
             return `
                 <tr>
@@ -1033,7 +983,10 @@
                 </tr>`;
         }
 
-        function dtNormalizeLabels(item){ if (Array.isArray(item.labels)) return item.labels; if (typeof item.labels === 'string') return item.labels.split(',').map(s=>s.trim()).filter(Boolean); return []; }
+        function dtNormalizeLabels (item) {
+            if (Array.isArray(item.labels)) return item.labels;
+            if (typeof item.labels === 'string') return item.labels.split(',').map(s=>s.trim()).filter(Boolean); return [];
+        }
         function dtFormatLocalDate(v){
             try {
                 if (!v) return '';
@@ -1055,11 +1008,18 @@
             const emailPart = email ? `<${email}>` : '';
             return name ? `${name} ${emailPart}`.trim() : emailPart;
         }
-        function dtBuildGmailUrl(item){ const threadId=item.thread_id||item.gmail_thread_id||item.threadId||''; if (threadId) return `https://mail.google.com/mail/u/0/#inbox/${threadId}`; const messageId=item.message_id||item.gmail_message_id||''; if (messageId) return `https://mail.google.com/mail/u/0/#all/${messageId}`; return 'https://mail.google.com/mail/u/0/#inbox'; }
+        function dtBuildGmailUrl (item) {
+            const threadId = item.thread_id||item.gmail_thread_id||item.threadId||'';
+            if (threadId) return `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
+
+            const messageId=item.message_id||item.gmail_message_id||'';
+            if (messageId) return `https://mail.google.com/mail/u/0/#all/${messageId}`;
+
+            return 'https://mail.google.com/mail/u/0/#inbox';
+        }
         function dtEscape(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
         async function dtProcessForContext(){
-            // Perform a Notion search using current filters and render results
             try {
                 dtSetLoading(true);
                 const payload = {
@@ -1091,7 +1051,21 @@
         }
 
         function dtSetLoading(flag){ const el=document.getElementById('dt-loading'); if (el) el.classList.toggle('hidden', !flag); }
-        function dtShowToast(message, type='info'){ let t=document.getElementById('toast'); if(!t){return;} t.classList.remove('toast-error','toast-success','hidden'); if(type==='error') t.classList.add('toast-error'); if(type==='success') t.classList.add('toast-success'); t.innerHTML = `<i class="fas fa-info-circle"></i><span>${dtEscape(message)}</span>`; setTimeout(()=>{ t.classList.add('hidden'); }, 4000); }
+        function dtShowToast(message, type='info') {
+            let t=document.getElementById('toast');
+            
+            if (!t) return;
+
+            t.classList.remove('toast-error','toast-success','hidden');
+            
+            if (type === 'error') {
+                t.classList.add('toast-error');
+            }
+            if(type === 'success') {
+                t.classList.add('toast-success');
+            }
+            t.innerHTML = `<i class="fas fa-info-circle"></i><span>${dtEscape(message)}</span>`;
+            setTimeout(()=>{ t.classList.add('hidden'); }, 4000); }
     </script>
 </body>
 </html>
