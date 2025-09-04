@@ -4,159 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIT Group - Gmail AI Assistant Login</title>
+    <!-- CSS Dependencies -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #e2e8f0;            /* slate-200 */
-            --secondary-color: #60a5fa;          /* blue-400 */
-            --accent-color: #8b5cf6;             /* violet-500 */
-            --success-color: #22c55e;            /* green-500 */
-            --warning-color: #f59e0b;            /* amber-500 */
-            --danger-color: #ef4444;             /* red-500 */
-            --bg-900: #0b1220;                   /* deep dark */
-            --bg-800: #0f172a;                   /* slate-900 */
-            --bg-700: #111827;                   /* gray-900 */
-            --card-800: #111827;                 /* dark card */
-            --card-700: #1f2937;                 /* gray-800 */
-            --muted-400: #94a3b8;                /* slate-400 */
-            --muted-500: #64748b;                /* slate-500 */
-            --border-700: #334155;               /* slate-700 */
-            --border-radius: 12px;
-            --shadow: 0 10px 30px rgba(0,0,0,0.35);
-            --glow: 0 0 0px rgba(99,102,241,0.0);
-            --gradient: radial-gradient(1200px 800px at 10% -10%, rgba(99,102,241,0.22), transparent 60%),
-                        radial-gradient(1000px 600px at 100% 0%, rgba(59,130,246,0.18), transparent 50%),
-                        linear-gradient(180deg, #0b1220 0%, #0f172a 30%, #0b1220 100%);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--gradient);
-            min-height: 100vh;
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-
-        .login-wrap {
-            width: 100%;
-            max-width: 440px;
-        }
-
-        .login-card {
-            background: linear-gradient(180deg, var(--card-800), var(--card-700));
-            border: 1px solid var(--border-700);
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            padding: 32px 28px;
-            backdrop-filter: blur(6px);
-        }
-
-        .logo {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-        .logo i {
-            font-size: 3.4em;
-            color: var(--secondary-color);
-            filter: drop-shadow(0 0 18px rgba(59,130,246,0.35));
-            margin-bottom: 10px;
-        }
-        .logo h1 {
-            font-size: 1.35em;
-            letter-spacing: 0.3px;
-            color: var(--primary-color);
-            margin-bottom: 6px;
-        }
-        .logo p {
-            color: var(--muted-400);
-            font-size: 0.95em;
-        }
-
-        .btn {
-            padding: 14px 18px;
-            width: 100%;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.02em;
-            font-weight: 700;
-            color: #0b1220;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .btn:hover { transform: translateY(-1px); filter: brightness(1.02); }
-        .btn:active { transform: translateY(0px) scale(0.998); }
-
-        .btn-google {
-            background: linear-gradient(90deg, #60a5fa, #8b5cf6 60%, #60a5fa);
-            background-size: 200% 100%;
-            color: #0b1220;
-            border: 1px solid rgba(99,102,241,0.5);
-            box-shadow: 0 8px 24px rgba(99,102,241,0.25);
-            animation: sheen 6s linear infinite;
-        }
-        .btn-google i { color: #0b1220; }
-        @keyframes sheen { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-
-        .divider {
-            position: relative;
-            text-align: center;
-            margin: 22px 0 12px;
-        }
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%; left: 0; right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, var(--border-700), transparent);
-        }
-        .divider span {
-            position: relative;
-            background: linear-gradient(180deg, var(--card-800), var(--card-700));
-            padding: 0 10px;
-            color: var(--muted-500);
-            font-size: 0.85em;
-        }
-
-        .features { margin-top: 14px; }
-        .features h3 { color: var(--primary-color); font-size: 0.98em; margin-bottom: 10px; }
-        .feature-item { color: var(--muted-400); font-size: 0.95em; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-        .feature-item i { color: var(--success-color); }
-
-        .alert {
-            display: none;
-            padding: 12px 14px;
-            border-radius: 10px;
-            border: 1px solid var(--border-700);
-            background: rgba(17,24,39,0.8);
-            color: var(--primary-color);
-            margin-top: 12px;
-        }
-        .alert-error { border-left: 4px solid var(--danger-color); }
-        .alert-success { border-left: 4px solid var(--success-color); }
-
-        .loading { display: none; text-align: center; margin-top: 16px; color: var(--muted-400); }
-        .loading i { color: var(--secondary-color); font-size: 1.6em; animation: spin 1.2s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .footer { margin-top: 22px; text-align: center; color: var(--muted-500); font-size: 0.85em; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/css/login.css" rel="stylesheet">
 </head>
 <body>
     <div class="login-wrap">
         <div class="login-card">
             <div class="logo">
                 <h1>FIT Group Gmail AI Assistant</h1>
-                <p>Secure sign in with Google to continue</p>
+                <p>Enterprise Email Intelligence & Automation Platform</p>
             </div>
 
             <div id="alert-container"></div>
@@ -166,23 +24,37 @@
                 Sign in with Google
             </button>
 
-            <div class="divider"><span>Secure OAuth 2.0</span></div>
+            <div class="divider"><span>Enterprise Security</span></div>
 
             <div class="features">
-                <h3>What you'll get</h3>
-                <div class="feature-item"><i class="fas fa-check"></i> AI-powered email analysis</div>
-                <div class="feature-item"><i class="fas fa-check"></i> Multilingual processing</div>
-                <div class="feature-item"><i class="fas fa-check"></i> Business intent detection</div>
-                <div class="feature-item"><i class="fas fa-check"></i> Team-ready results dashboard</div>
+                <h3>Enterprise Features</h3>
+                <div class="feature-item">
+                    <i class="fas fa-brain"></i>
+                    Advanced AI-powered email analysis
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-globe"></i>
+                    Multilingual support with GPT-4
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-bolt"></i>
+                    Real-time intent & priority detection
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-chart-line"></i>
+                    Comprehensive analytics dashboard
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-shield-alt"></i>
+                    Enterprise-grade security
+                </div>
             </div>
 
-            <div id="loading" class="loading">
-                <i class="fas fa-spinner"></i>
-                <p>Connecting to Google...</p>
+            <div id="loading" class="">
             </div>
 
             <div class="footer">
-                <p>&copy; 2025 FIT Group • Powered by OpenAI & Google</p>
+                <p>&copy; 2025 FIT Group - Advanced Email Intelligence Platform | Powered by OpenAI GPT-4</p>
             </div>
         </div>
     </div>
