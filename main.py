@@ -206,6 +206,7 @@ def google_callback():
 
         # Add error logging
         logger.info(f"Processing OAuth callback with redirect_uri: {redirect_uri}")
+        print(f"========\n\n\n\n\n\n\n\n{redirect_uri}\n\n\n\n\n\n\n==========")
         
         result = auth_manager.handle_oauth_callback(authorization_response, redirect_uri)
         
