@@ -178,16 +178,49 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="user-bar">
-                <span id="user-email" class="user-email"><i class="fas fa-user-circle"></i> Loading...</span>
-                <a href="/logout" class="btn btn-danger btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    <div class="header">
+        <!-- Top Navigation Bar -->
+        <div class="header-top">
+            <div class="header-left">
+                <h1><i class="fas fa-robot"></i> FIT Group Gmail AI Assistant</h1>
             </div>
-            <h1><i class="fas fa-robot"></i> FIT Group Gmail AI Assistant</h1>
-            <p>Enterprise Email Intelligence & Automation Platform</p>
-            <p><strong>API Endpoint:</strong> <span id="api-endpoint">https://fitgroup-gmail-ai-api.onrender.com</span></p>
+            <div class="header-right">
+                <div class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                    <i class="fas fa-sun theme-toggle-icon sun"></i>
+                    <i class="fas fa-moon theme-toggle-icon moon"></i>
+                    <div class="theme-toggle-slider">
+                        <i class="fas fa-sun" id="slider-icon"></i>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <!-- Desktop user info -->
+                    <div class="user-details desktop-only">
+                        <span id="user-email" class="user-email">Loading...</span>
+                    </div>
+                    
+                    <!-- Mobile user avatar -->
+                    <div class="user-avatar mobile-only" onclick="toggleUserTooltip()" title="User Info">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    
+                    <!-- Desktop logout button -->
+                    <a href="/logout" class="btn btn-danger btn-sm logout-btn desktop-only">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                    
+                    <!-- Mobile user tooltip -->
+                    <div class="user-info-tooltip" id="user-tooltip">
+                        <div class="user-email" id="mobile-user-email">Loading...</div>
+                        <a href="/logout" class="logout-link">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
+        
+    </div>
+    <div class="container">
 
         <div class="status-bar">
             <div class="status-card">
@@ -261,7 +294,7 @@
                 <div class="form-group" style="margin-top: 20px;">
                     <label>External Links:</label>
                     <div style="display: flex; gap: 4%; width: 100%;">
-                        <a href="https://notion.so" target="_blank" class="btn btn-info external-link-btn">
+                        <a href="https://notion.so" target="_blank" class="btn btn-notion external-link-btn">
                             <i class="fab fa-notion"></i> Notion Dashboard
                         </a>
                         <a href="https://gmail.com" target="_blank" class="btn btn-danger external-link-btn">
@@ -359,9 +392,72 @@
     </div>
 
     <script>
+        // Theme Management
+        class ThemeManager {
+            constructor() {
+                this.currentTheme = this.getStoredTheme() || this.getSystemTheme();
+                this.applyTheme(this.currentTheme);
+            }
+
+            getSystemTheme() {
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+
+            getStoredTheme() {
+                return localStorage.getItem('theme');
+            }
+
+            setStoredTheme(theme) {
+                localStorage.setItem('theme', theme);
+            }
+
+            applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                this.currentTheme = theme;
+                this.updateSliderIcon();
+            }
+
+            toggleTheme() {
+                const newTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+                this.applyTheme(newTheme);
+                this.setStoredTheme(newTheme);
+            }
+
+            updateSliderIcon() {
+                const sliderIcon = document.getElementById('slider-icon');
+                if (sliderIcon) {
+                    sliderIcon.className = this.currentTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+                }
+                
+                // The CSS should handle the icon opacity based on data-theme attribute
+                // which is already set in applyTheme method
+            }
+        }
+
+        // Initialize theme manager
+        const themeManager = new ThemeManager();
+        
+        // Ensure icons are properly set on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            themeManager.updateSliderIcon();
+        });
+
+        // Theme toggle function
+        function toggleTheme() {
+            themeManager.toggleTheme();
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            // Only auto-switch if user hasn't manually set a preference
+            if (!localStorage.getItem('theme')) {
+                themeManager.applyTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+
         // Configuration
-        // const API_BASE_URL = 'http://localhost:5000';
-        const API_BASE_URL = 'https://fitgroup-gmail-ai-api.onrender.com';
+        const API_BASE_URL = 'http://localhost:5000';
+        // const API_BASE_URL = 'https://fitgroup-gmail-ai-api.onrender.com';
         // const API_BASE_URL = 'https://fitgroup-gmail-ai-assistant-render-test.onrender.com';
         
         // Initialize the dashboard
@@ -374,7 +470,10 @@
         });
 
         function updateApiEndpoint() {
-            document.getElementById('api-endpoint').textContent = API_BASE_URL;
+            const apiEndpointElement = document.getElementById('api-endpoint');
+            if (apiEndpointElement) {
+                apiEndpointElement.textContent = API_BASE_URL;
+            }
         }
 
         async function fetchUserProfile() {
@@ -948,9 +1047,15 @@
             const rows = dtState.filtered.slice(start, end).map(dtRenderRow).join('');
             tbody.innerHTML = rows || `<tr><td colspan="11" style="text-align:center; color: var(--text-secondary); padding: 24px;">No results match current filters.</td></tr>`;
             const totalPages = Math.max(1, Math.ceil(dtState.filtered.length / dtState.perPage));
-            document.getElementById('dt-page-info').textContent = `Page ${dtState.page} of ${totalPages}`;
-            document.getElementById('dt-prev').disabled = dtState.page <= 1;
-            document.getElementById('dt-next').disabled = dtState.page >= totalPages;
+            const pageInfo = document.getElementById('dt-page-info');
+            if (pageInfo) {
+                pageInfo.textContent = `Page ${dtState.page} of ${totalPages}`;
+            }
+            
+            const prevBtn = document.getElementById('dt-prev');
+            const nextBtn = document.getElementById('dt-next');
+            if (prevBtn) prevBtn.disabled = dtState.page <= 1;
+            if (nextBtn) nextBtn.disabled = dtState.page >= totalPages;
         }
 
         function dtRenderRow(item){
@@ -1070,6 +1175,67 @@
             }
             t.innerHTML = `<i class="fas fa-info-circle"></i><span>${dtEscape(message)}</span>`;
             setTimeout(()=>{ t.classList.add('hidden'); }, 4000); }
+
+        // Sticky header scroll effect (disabled on mobile)
+        let lastScrollTop = 0;
+        const header = document.querySelector('.header');
+        
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+        
+        window.addEventListener('scroll', () => {
+            // Only apply scroll effects on desktop
+            if (isMobile()) return;
+            
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (scrollTop > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+            
+            lastScrollTop = scrollTop;
+        });
+        
+        // Reset scroll state on window resize
+        window.addEventListener('resize', () => {
+            if (isMobile()) {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Mobile user tooltip functionality
+        function toggleUserTooltip() {
+            const tooltip = document.getElementById('user-tooltip');
+            if (tooltip) {
+                tooltip.classList.toggle('show');
+            }
+        }
+
+        // Close tooltip when clicking outside
+        document.addEventListener('click', (e) => {
+            const tooltip = document.getElementById('user-tooltip');
+            const userAvatar = document.querySelector('.user-avatar');
+            
+            if (tooltip && userAvatar && !userAvatar.contains(e.target) && !tooltip.contains(e.target)) {
+                tooltip.classList.remove('show');
+            }
+        });
+
+        // Update mobile user email when user email is loaded
+        function updateMobileUserEmail() {
+            const desktopEmail = document.getElementById('user-email');
+            const mobileEmail = document.getElementById('mobile-user-email');
+            
+            if (desktopEmail && mobileEmail) {
+                mobileEmail.textContent = desktopEmail.textContent;
+            }
+        }
+
+        // Call update function when page loads
+        document.addEventListener('DOMContentLoaded', updateMobileUserEmail);
     </script>
 </body>
 </html>
