@@ -476,15 +476,18 @@
                 const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
+                    credentials: 'include',
+                    mode: 'cors',
                     body: JSON.stringify({
                         days: days,
                         max_results: maxEmails,
                         include_full_data: false
                     })
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
