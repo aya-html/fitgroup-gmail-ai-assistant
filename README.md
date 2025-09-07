@@ -1,279 +1,228 @@
-# 🚀 FIT Group - Multilingual Gmail Assistant
+# 🚀 FIT Group - Multilingual Gmail AI Assistant
 
-Advanced AI-powered email processing system with GPT-4 integration for automated email analysis, classification, and response generation.
+A production-ready Flask web application that provides AI-powered email processing, analysis, and management system. The application supports multiple users with individual Gmail accounts and features a shared results database using Notion.
 
 ## 🌟 Key Features
 
-- **Multilingual Processing**: Supports 7+ languages with automatic detection
-- **Advanced AI Classification**: 50+ business command categories
-- **Dual Reply Generation**: Professional & Friendly tone variations
-- **Smart Confidence Scoring**: Automated quality assessment
-- **Team Routing**: Automatic assignment to Sales, Support, HR, Legal, etc.
-- **Notion Integration**: Seamless workflow logging
-- **Real-time Analytics**: Processing statistics and performance metrics
+- **Multi-User Support**: Secure authentication and user management with Google OAuth2
+- **Gmail Integration**: Process and analyze emails from multiple Gmail accounts
+- **AI-Powered Analysis**: GPT-4 integration for advanced email processing
+- **Multilingual Support**: Handles emails in multiple languages including English, Spanish, French, German, Italian, Portuguese, Dutch, Chinese, and Arabic
+- **Real-time Dashboard**: Web interface for monitoring and managing email processing
+- **Notion Integration**: Store and organize processed results in Notion database
+- **API-First Design**: RESTful API endpoints for all functionality
+- **Advanced Email Classification**: 50+ business command categories for intelligent routing
+- **Dual-Tone Reply Generation**: Professional and friendly response drafts
+- **Confidence Scoring**: AI-powered quality assessment of generated responses
 
 ## 📋 Prerequisites
 
-### Required Services
-1. **OpenAI API Account** - GPT-4 access required
-2. **Google Cloud Console** - Gmail API access
-3. **Notion Workspace** (Optional) - For workflow integration
-4. **Render Account** - For deployment
-
-### API Keys Needed
-- OpenAI API Key
-- Google Service Account JSON or OAuth Token
-- Notion Integration Token (optional)
+- Python 3.11+
+- Google Cloud Project with Gmail API enabled
+- OpenAI API key for GPT-4 access
+- Notion API integration with two databases (Users and Results)
+- Render.com account (for deployment)
 
 ## 🔧 Setup Instructions
 
-### 1. Google Cloud Setup
+### 1. Clone the Repository
+```bash
+git clone <your-repository-url>
+cd fitgroup-gmail-ai-assistant
+```
 
-#### Option A: Service Account (Recommended for Production)
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable Gmail API
-4. Create a Service Account:
-   - Go to IAM & Admin > Service Accounts
-   - Click "Create Service Account"
-   - Grant necessary permissions
-   - Generate JSON key
-5. Enable Domain-Wide Delegation (for G Suite/Workspace):
-   - Admin Console > Security > API Controls
-   - Add service account client ID with Gmail scope
+### 2. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-#### Option B: OAuth Token (Development)
-1. Create OAuth 2.0 credentials
-2. Download credentials.json
-3. Run OAuth flow to get token.json
+### 3. Configure Environment Variables
 
-### 2. Notion Setup (Optional)
-1. Create a Notion integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Create a database with these properties:
-   - Email Subject (Title)
-   - Sender (Email)
-   - Received Date (Date)
-   - Language (Select)
-   - Summary (Rich Text)
-   - Commands (Multi-select)
-   - Tone (Select: positive, neutral, negative, urgent, confused)
-   - Team Tags (Multi-select)
-   - Confidence Score (Number)
-   - Action Status (Select)
-   - Reply Draft 1 (Rich Text)
-   - Reply Draft 2 (Rich Text)
-   - Processing Status (Select)
-   - Processed At (Date)
-
-3. Share database with your integration
-
-### 3. Render Deployment
-
-#### Method 1: GitHub Integration (Recommended)
-1. Fork/clone this repository
-2. Push to your GitHub account
-3. Connect to Render:
-   - Go to [render.com](https://render.com)
-   - New > Web Service
-   - Connect your GitHub repo
-   - Configure environment variables (see below)
-
-#### Method 2: Direct Deploy
-1. Create new Web Service on Render
-2. Upload project files
-3. Set build/start commands
-
-### 4. Environment Variables
-
-Set these in Render Dashboard > Environment:
+Create a `.env` file for local development:
 
 ```bash
 # Required
 OPENAI_API_KEY=sk-your-openai-key
-GMAIL_USER_EMAIL=admin@yourcompany.com
+GOOGLE_CLIENT_SECRET_JSON='{"web":{"client_id":"...","client_secret":"..."}}'
 
-# Google Auth (choose one)
-GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-# OR
-GOOGLE_OAUTH_TOKEN={"access_token":"...","refresh_token":"..."}
-
-# Optional - Notion Integration
+# Notion Integration
 NOTION_TOKEN=secret_your-notion-token
-NOTION_DATABASE_ID=your-database-id
+NOTION_USERS_DB_ID=your-users-database-id
+NOTION_RESULTS_DB_ID=your-results-database-id
 
 # Application Settings
+FLASK_ENV=development
+DEBUG=true
+PORT=5000
+HOST=127.0.0.1
+```
+
+### 4. Run the Application
+
+**Using the start script (recommended)**
+```bash
+./start.sh
+```
+
+
+## 🚀 Deployment to Render.com
+
+### 1. Prepare Your Repository
+- Push your code to GitHub
+- Ensure all environment variables are ready
+
+### 2. Create Render Service
+1. Go to [Render.com](https://render.com)
+2. Create a **New Web Service**
+3. Connect your GitHub repository
+4. Select **Python** as the environment
+
+### 3. Configure Environment Variables
+
+Set these in Render Dashboard > Environment:
+
+```bash
+OPENAI_API_KEY=sk-your-openai-key
+NOTION_TOKEN=secret_your-notion-token
+NOTION_USERS_DB_ID=your-users-database-id
+NOTION_RESULTS_DB_ID=your-results-database-id
+GOOGLE_CLIENT_SECRET_JSON={"web":{"client_id":"...","client_secret":"..."}}
 FLASK_ENV=production
 DEBUG=false
 ```
 
-### 5. Build Configuration
+### 4. Configure Build and Start Commands
 
-Render will use these settings:
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `gunicorn --bind 0.0.0.0:$PORT main:app --workers 2 --timeout 120`
-- **Python Version**: 3.11.6
+**Build Command:**
+```bash
+pip install -r requirements.txt
+```
+
+**Start Command:**
+```bash
+gunicorn main:app --workers=2 --threads=8 --timeout=300 --bind 0.0.0.0:$PORT
+```
+
+### 5. Health Check Configuration
+- **Health Check Path**: `/api/health`
+- **Auto-deploy**: Enable for main branch
 
 ## 📡 API Endpoints
 
-### Health Check
-```http
-GET /api/health
-```
-Returns system status and service connectivity.
+### Authentication
+- `GET /login` - Login page
+- `GET /auth/google` - Initiate Google OAuth2 flow
+- `GET /auth/google/callback` - OAuth2 callback handler
+- `GET /logout` - Logout current user
 
-### Process Recent Emails
-```http
-POST /api/process-emails
-Content-Type: application/json
+### Core Features
+- `POST /api/process-emails` - Process recent emails
+- `POST /api/process-batch` - Advanced batch processing with analytics
+- `GET /api/test-connection` - Test API connections
+- `GET /api/health` - System health check
+- `GET /api/stats` - System statistics and capabilities
 
-{
-    "days": 7,
-    "max_results": 50
-}
-```
+### User Management
+- `GET /api/user/profile` - Get current user profile
+- `GET /api/user/results` - Get email processing results
+- `GET /api/user/labels` - Get unique Gmail labels
+- `POST /api/user/results/search` - Search processed results
 
-### Advanced Batch Processing
-```http
-POST /api/process-batch
-Content-Type: application/json
-
-{
-    "days": 7,
-    "max_results": 50,
-    "include_full_data": false
-}
-```
-
-### System Statistics
-```http
-GET /api/stats
-```
-
-### Test Connections
-```http
-GET /api/test-connection
-```
+### Admin Features
+- `GET /api/admin/users` - Get all users list
 
 ## 🏗️ Project Structure
 
 ```
-fit-gmail-assistant/
-├── main.py                 # Flask web application
-├── gmail_assistant.py      # Core AI processing logic
-├── requirements.txt        # Python dependencies
-├── render.yaml            # Render deployment config
-├── README.md              # This file
-└── logs/                  # Application logs (auto-created)
+fitgroup-gmail-ai-assistant/
+├── main.py                 # Flask application & API endpoints
+├── auth_manager.py        # Google OAuth2 authentication
+├── gmail_assistant.py     # Email processing & AI integration
+├── notion_manager.py      # Notion database integration
+├── user_manager.py        # User management & storage
+├── requirements.txt       # Python dependencies
+├── render.yaml           # Render deployment config
+├── start.sh             # Application startup script
+├── static/              # Static assets
+│   └── css/            # Stylesheets
+├── templates/           # HTML templates
+│   ├── login.html      # Login page
+│   └── dashboard.html  # Main dashboard
+└── README.md           # This file
 ```
 
-## 🔒 Security Best Practices
+## 🔒 Security Features
 
-1. **API Keys**: Never commit API keys to version control
-2. **Environment Variables**: Use Render's secure environment variable storage
-3. **Service Accounts**: Prefer service accounts over OAuth for production
-4. **Access Control**: Implement proper authentication for production use
-5. **Rate Limiting**: Monitor API usage to avoid rate limits
+- Google OAuth2 authentication with refresh token management
+- Session management and validation
+- Secure credential storage with optional encryption
+- Rate limiting and error handling
+- CORS support for cross-origin requests
+- Environment variable configuration
+- Multi-user isolation
 
+## 🛠️ Notion Database Setup
 
-## 🚀 Deployment Guide – Gmail → GPT → Notion Project
+### Users Database Schema
+Create a Notion database with these properties:
+- **Name** (Title) - User email address
+- **Email** (Email) - User email address
+- **Google Access Token** (Rich Text) - Encrypted access token
+- **Google Refresh Token** (Rich Text) - Encrypted refresh token
+- **Token Expiry** (Date) - Token expiration date
+- **Token URI** (Rich Text) - OAuth token URI
+- **Scopes** (Rich Text) - JSON array of OAuth scopes
+- **Status** (Select) - Active/Inactive
+- **Created At** (Date) - User creation date
+- **Last Login** (Date) - Last login timestamp
 
-This guide explains how to run and deploy the Gmail AI Assistant project:
+### Results Database Schema
+Create a Notion database with these properties:
+- **Email Subject** (Title) - Email subject line
+- **User Email** (Email) - Processing user email
+- **Sender** (Email) - Email sender address
+- **Received Date** (Date) - Email received date
+- **Language** (Select) - Detected language
+- **Summary** (Rich Text) - AI-generated summary
+- **Commands** (Multi-select) - Detected business commands
+- **Labels** (Multi-select) - Gmail labels
+- **Tone** (Select) - Email tone analysis
+- **Team Tags** (Multi-select) - Assigned team tags
+- **Confidence Score** (Number) - AI confidence (0-100)
+- **Action Status** (Select) - Processing status
+- **Reply Draft 1** (Rich Text) - Professional reply
+- **Reply Draft 2** (Rich Text) - Friendly reply
+- **Processing Status** (Select) - Processing state
+- **Processed At** (Date) - Processing timestamp
 
-- **Production deployment** → Gunicorn on Render.com
-- **Email data → GPT → Notion** integration
----
+## 🧪 Testing
 
-### ⚠️ Before You Start
+### Local Testing
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-1. **Notion DB Setup**
-    - Create a Notion database with properties (columns) matching all fields the app saves (e.g. `Email Subject`, `Sender`, `Received Date`, `Language`, `Summary`, etc.).
-    - Make sure the **property types match** (e.g. `title`, `email`, `date`, `select`, `rich_text`).
-    - Share the database with your Notion integration (invite via “Share → Invite → your integration”).
-        
-2. **Google OAuth2 Setup**
-    - Create a project in **Google Cloud Console** → Enable **Gmail API**.
-    - Generate **OAuth2 credentials** (Client ID & Secret).
-    - Run local OAuth flow to obtain **refresh token** (needed so you don’t re-consent every 7 days).
-        
-3. **Secrets Management**
-    - Do **not** commit secrets to GitHub.
-    - Use **Render.com Environment Variables** instead.
----
+# Set environment variables
+export OPENAI_API_KEY=your-key
+export GOOGLE_CLIENT_SECRET_JSON='{"web":{"client_id":"...","client_secret":"..."}}'
+export NOTION_TOKEN=your-notion-token
+export NOTION_USERS_DB_ID=your-users-db-id
+export NOTION_RESULTS_DB_ID=your-results-db-id
 
-### 📦 Deployment to Render (Gunicorn)
+# Run application
+python main.py
+```
 
-1. Push your repo to GitHub.
+### API Testing
+```bash
+# Health check
+curl https://your-app.onrender.com/api/health
 
-2. On [Render.com](https://render.com?utm_source=chatgpt.com):
-    - Create a **New Web Service**
-    - Connect your GitHub repo
-        
-3. Add **Environment Variables** in Render dashboard:
-    `OPENAI_API_KEY, NOTION_TOKEN, NOTION_DB_ID, GOOGLE_OAUTH_TOKEN, FLASK_ENV, DEBUG`
-
-4. In Render service settings:
-    - **Build Command**:
-        `pip install -r requirements.txt`
-    - **Start Command**:
-        `gunicorn main:app --workers=2 --threads=8 --timeout=300`
-        
-5. Configure a health check endpoint (`/api/health`). Render will restart automatically if unhealthy.
----
-
-### ✅ Verification
-
-- Visit your Render service URL:
-    `https://your-app.onrender.com/api/health`
-    Expected:
-    `{"status": "healthy", "uptime": "Running", ...}`
-- Send a test email → check Notion database for a new entry with fields filled.
----
-
-### 🔒 Security Checklist
-
--  Never commit `.env` or credential files.
--  Only store secrets in Render Environment Variables.
--  Always invite the Notion integration to your database.
--  Validate Gmail OAuth2 tokens (refresh if expired).
--  Use HTTPS-only for API keys & communication.
----
-
-### 🧩 Common Issues
-
-- **Notion integration can’t write** → You forgot to invite it to the database or the database schema doesn't match.
-- **Email body empty** → Gmail sent only `text/html`, check parsing logic.
-- **Invalid refresh token** → Re-run OAuth2 flow, update `refresh_token` in `GOOGLE_AUTH_TOKEN`. Visit your Render service URL: `https://your-app.onrender.com/api/test-refresh-token` for testing
-- **Render restarts often** → Adjust Gunicorn workers/threads + health checks.
----
-
-## 🚀 Production Deployment Checklist
-
-- [ ] OpenAI API key configured
-- [ ] Google Cloud project setup with Gmail API enabled
-- [ ] Service account created with proper permissions
-- [ ] Environment variables set in Render
-- [ ] Health check endpoint responding
-- [ ] Test connection endpoint validates all APIs
-- [ ] Notion database configured (if using)
-- [ ] Email processing tested with sample data
-- [ ] Monitoring and logging configured
-- [ ] Domain/subdomain pointed to Render (if needed)
-
-## 📊 Monitoring & Analytics
-
-### Key Metrics to Track
-- **Processing Success Rate**: Percentage of emails processed successfully
-- **Confidence Score Distribution**: Quality of AI-generated responses
-- **Language Detection Accuracy**: Multilingual processing effectiveness
-- **Team Routing Accuracy**: Correct department assignment
-- **API Response Times**: Performance monitoring
-- **Error Rates**: System reliability tracking
-
-### Logging
-- Application logs stored in `/logs/gmail_assistant.log`
-- Structured logging for easy parsing
-- Error tracking with stack traces
-- Performance metrics logging
+# Process test emails
+curl -X POST https://your-app.onrender.com/api/process-emails \
+  -H "Content-Type: application/json" \
+  -d '{"days": 1, "max_results": 5}'
+```
 
 ## 🛠️ Troubleshooting
 
@@ -281,24 +230,25 @@ This guide explains how to run and deploy the Gmail AI Assistant project:
 
 #### 1. Gmail API Authentication Errors
 ```
-Error: [Errno 2] No such file or directory: 'token.json'
+Error: No valid Google credentials provided
 ```
-**Solution**: Ensure `GOOGLE_SERVICE_ACCOUNT_JSON` or `GOOGLE_OAUTH_TOKEN` is properly set.
+**Solution**: Ensure `GOOGLE_CLIENT_SECRET_JSON` is properly set and contains valid OAuth2 credentials.
 
-#### 2. OpenAI API Rate Limits
-```
-Error: Rate limit exceeded
-```
-**Solution**: Implement request queuing or upgrade OpenAI plan.
-
-#### 3. Notion Sync Failures
+#### 2. Notion Sync Failures
 ```
 Error: Notion sync failed
 ```
 **Solution**: 
-- Verify `NOTION_TOKEN` and `NOTION_DATABASE_ID`
+- Verify `NOTION_TOKEN` and database IDs
 - Check database permissions
-- Validate database schema matches expected properties
+- Ensure database schema matches expected properties
+- Invite your Notion integration to both databases
+
+#### 3. OpenAI API Rate Limits
+```
+Error: Rate limit exceeded
+```
+**Solution**: Implement request queuing or upgrade OpenAI plan.
 
 #### 4. Memory Issues on Render
 ```
@@ -315,6 +265,22 @@ Enable debug mode for development:
 DEBUG=true
 FLASK_ENV=development
 ```
+
+## 📊 Monitoring & Analytics
+
+### Key Metrics to Track
+- **Processing Success Rate**: Percentage of emails processed successfully
+- **Confidence Score Distribution**: Quality of AI-generated responses
+- **Language Detection Accuracy**: Multilingual processing effectiveness
+- **Team Routing Accuracy**: Correct department assignment
+- **API Response Times**: Performance monitoring
+- **Error Rates**: System reliability tracking
+
+### Logging
+- Application logs stored in `gmail_assistant.log`
+- Structured logging for easy parsing
+- Error tracking with stack traces
+- Performance metrics logging
 
 ## 🔧 Configuration Options
 
@@ -353,31 +319,17 @@ For processing >1000 emails/day:
 3. Add database connection pooling
 4. Consider microservices architecture
 
-## 🧪 Testing
+## 🚀 Production Deployment Checklist
 
-### Local Testing
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Set environment variables
-export OPENAI_API_KEY=your-key
-export GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
-
-# Run application
-python main.py
-```
-
-### API Testing
-```bash
-# Health check
-curl https://your-app.onrender.com/api/health
-
-# Process test emails
-curl -X POST https://your-app.onrender.com/api/process-emails \
-  -H "Content-Type: application/json" \
-  -d '{"days": 1, "max_results": 5}'
-```
+- [ ] OpenAI API key configured
+- [ ] Google Cloud project setup with Gmail API enabled
+- [ ] Notion databases created with proper schema
+- [ ] Environment variables set in Render
+- [ ] Health check endpoint responding
+- [ ] Test connection endpoint validates all APIs
+- [ ] Email processing tested with sample data
+- [ ] Monitoring and logging configured
+- [ ] Domain/subdomain pointed to Render
 
 ## 📞 Support & Maintenance
 
@@ -429,4 +381,4 @@ This project is proprietary to FIT Group. All rights reserved.
 
 **Built for FIT Group by the AI Engineering Team**
 
-*Last Updated: August 2025*
+*Last Updated: Sep.8 2025*
